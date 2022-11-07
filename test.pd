@@ -1,4 +1,2 @@
 #N canvas 773 123 444 303 12;
-#X obj 97 88 knob 38 128 0 127 0 0 empty empty empty 0 -10 0 12 #dfdfdf #000000 #000000 0.16559 xy 0 #000000 0 -135 135;
-#X floatatom 116 168 5 0 0 0 - - - 0;
-#X connect 0 0 1 0;
+#X obj 97 88 knob 38 128 0 127 0 0 empty empty empty 0 -10 0 12 #dfdfdf #000000 #000000 0.01 xy 0 #000000 0 -135 135;
