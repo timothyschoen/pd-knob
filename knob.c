@@ -674,7 +674,7 @@ static void knb_zoom(t_knb *x, t_floatarg f){
 static void *knb_new(t_symbol *s, int argc, t_atom *argv){
     s = NULL;
     t_knb *x = (t_knb *)iemgui_new(knb_class);
-    int w = IEM_GUI_DEFAULTSIZE * 2, h = DEFAULT_SENSITIVITY;
+    int width = IEM_GUI_DEFAULTSIZE * 2, height = DEFAULT_SENSITIVITY;
     int fs = x->x_gui.x_fontsize, lilo = 0, ldx = 0, ldy = -8 * IEM_GUI_DEFAULTSIZE_SCALE;
     float v = 0;
     t_symbol *movemode = s_k_xy;
@@ -697,8 +697,8 @@ static void *knb_new(t_symbol *s, int argc, t_atom *argv){
             &&IS_A_FLOAT(argv,9)&&IS_A_FLOAT(argv,10)
             &&IS_A_FLOAT(argv,11)&&IS_A_FLOAT(argv,12)&&IS_A_FLOAT(argv,16))
     {
-        w = (int)atom_getintarg(0, argc, argv);
-        h = (int)atom_getintarg(1, argc, argv);
+        width = (int)atom_getintarg(0, argc, argv);
+        height = (int)atom_getintarg(1, argc, argv);
         min = (double)atom_getfloatarg(2, argc, argv);
         max = (double)atom_getfloatarg(3, argc, argv);
         lilo = (int)atom_getintarg(4, argc, argv);
@@ -768,7 +768,7 @@ static void *knb_new(t_symbol *s, int argc, t_atom *argv){
     if('#' == acol_sym->s_name[0])
         x->x_acol = (int)strtol(acol_sym->s_name+1, 0, 16);
     iemgui_verify_snd_ne_rcv(&x->x_gui);
-    knb_check_wh(x, w, h);
+    knb_check_wh(x, width, height);
     knb_check_minmax(x, min, max);
     iemgui_newzoom(&x->x_gui);
     x->x_fval = knb_getfval(x);
