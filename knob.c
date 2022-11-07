@@ -1,6 +1,4 @@
-/* Copyright (c) 2020 Antoine Rousseau.
- * For information on usage and redistribution, and for a DISCLAIMER OF ALL
- * WARRANTIES, see the file, "LICENSE.txt," in this distribution. */
+// stolen from vanilla's knob
 
 #include <stdlib.h>
 #include <string.h>
@@ -29,9 +27,8 @@
 #define DEFAULT_SENSITIVITY 128
 #define DEFAULT_SIZE 35
 #define MIN_SIZE 12
-
 #define POS_MARGIN 0.01
-/* ------------ knb  ----------------------- */
+
 typedef struct _knb
 {
     t_iemgui x_gui;
@@ -74,7 +71,7 @@ static void knb_draw_io(t_knb *x,t_glist *glist, int old_snd_rcv_flags)
 
     sprintf(tag, "%lxOUTLINE", (unsigned long)x);
     pdgui_vmess(0, "crs", canvas, "delete", tag);
-    if ((!x->x_gui.x_fsf.x_snd_able) || (!x->x_gui.x_fsf.x_rcv_able))
+    if((!x->x_gui.x_fsf.x_snd_able) || (!x->x_gui.x_fsf.x_rcv_able))
     {
         pdgui_vmess(0, "crr iiii ri rS", canvas, "create", "rectangle",
             xpos, ypos,
@@ -85,7 +82,7 @@ static void knb_draw_io(t_knb *x,t_glist *glist, int old_snd_rcv_flags)
 
     sprintf(tag, "%lxOUT%d", (unsigned long)x, 0);
     pdgui_vmess(0, "crs", canvas, "delete", tag);
-    if (!x->x_gui.x_fsf.x_snd_able)
+    if(!x->x_gui.x_fsf.x_snd_able)
     {
         pdgui_vmess(0, "crr iiii rs rS", canvas, "create", "rectangle",
             xpos, ypos + x->x_gui.x_w + IEMGUI_ZOOM(x) - ioh,
@@ -99,7 +96,7 @@ static void knb_draw_io(t_knb *x,t_glist *glist, int old_snd_rcv_flags)
 
     sprintf(tag, "%lxIN%d", (unsigned long)x, 0);
     pdgui_vmess(0, "crs", canvas, "delete", tag);
-    if (!x->x_gui.x_fsf.x_rcv_able)
+    if(!x->x_gui.x_fsf.x_rcv_able)
     {
         pdgui_vmess(0, "crr iiii rs rS", canvas, "create", "rectangle",
             xpos, ypos,
@@ -131,21 +128,21 @@ static void knb_update_knob(t_knb *x, t_glist *glist)
     angle0 = (x->x_start_angle / 90.0 - 1) * M_PI / 2.0;
     angle = angle0 + pos * (x->x_end_angle - x->x_start_angle) / 180.0 * M_PI;
 
-    if (x->x_arc_visible)
+    if(x->x_arc_visible)
     {
         float zero_angle, zero_val;
         int arcwidth, aD, cD;
         int realw = x->x_gui.x_w / IEMGUI_ZOOM(x);
 
         arcwidth = x->x_arc_width;
-        if (arcwidth > (realw - 1) / 2)
+        if(arcwidth > (realw - 1) / 2)
             arcwidth = (realw - 1) / 2;
-        if (arcwidth < -((realw - 1) / 2 + 1))
+        if(arcwidth < -((realw - 1) / 2 + 1))
             arcwidth = -((realw - 1) / 2 + 1);
 
-        if ((x->x_min * x->x_max) < 0)
+        if((x->x_min * x->x_max) < 0)
         {
-            if (x->x_min < 0)
+            if(x->x_min < 0)
                 zero_val = -x->x_min / (fabs(x->x_min) + fabs(x->x_max));
             else
                 zero_val = -x->x_max / (fabs(x->x_min) + fabs(x->x_max));
@@ -153,7 +150,7 @@ static void knb_update_knob(t_knb *x, t_glist *glist)
             angle0 = zero_angle;
         }
 
-        if (arcwidth > 0) aD = IEMGUI_ZOOM(x);
+        if(arcwidth > 0) aD = IEMGUI_ZOOM(x);
         else aD = (((realw + 1)/ 2) + arcwidth) * IEMGUI_ZOOM(x) ;
 
         sprintf(tag, "%lxARC", (unsigned long)x);
@@ -163,7 +160,7 @@ static void knb_update_knob(t_knb *x, t_glist *glist)
             "-start", angle0 * -180.0 / M_PI,
             "-extent", (angle - angle0) * -179.99 / M_PI);
 
-        if (x->x_center_visible)
+        if(x->x_center_visible)
         {
             sprintf(tag, "%lxCENTER", (unsigned long)x);
             cD = (arcwidth + 1) * IEMGUI_ZOOM(x);
@@ -173,7 +170,7 @@ static void knb_update_knob(t_knb *x, t_glist *glist)
     }
 
     #define NEAR(x) ((int)(x + 0.49))
-    if (x->x_wiper_visible)
+    if(x->x_wiper_visible)
     {
         float radius = x->x_gui.x_w / 2.0;
         float xc, yc, xp, yp;
@@ -202,7 +199,7 @@ static void knb_update_ticks(t_knb *x, t_glist *glist)
     sprintf(tag, "%lxTICKS", (unsigned long)x);
 
     pdgui_vmess(0, "crs", canvas, "delete", tag);
-    if (!x->x_ticks) return;
+    if(!x->x_ticks) return;
 
     x0 = text_xpix(&x->x_gui.x_obj, glist);
     y0 = text_ypix(&x->x_gui.x_obj, glist);
@@ -212,12 +209,12 @@ static void knb_update_ticks(t_knb *x, t_glist *glist)
     r1 = x->x_gui.x_w / 2.0 - IEMGUI_ZOOM(x) * 2.0;
     r2 = IEMGUI_ZOOM(x) * 1.0 ;
 
-    if ((divs > 1) && ((x->x_end_angle - x->x_start_angle + 360) % 360 != 0))
+    if((divs > 1) && ((x->x_end_angle - x->x_start_angle + 360) % 360 != 0))
         divs = divs - 1;
     dalpha = (x->x_end_angle - x->x_start_angle) / (float)divs;
     alpha0 = x->x_start_angle;
 
-    for (tick = 0; tick < x->x_ticks; tick++)
+    for(tick = 0; tick < x->x_ticks; tick++)
     {
         float alpha = (alpha0 + dalpha * tick - 90.0) * M_PI / 180.0;
         xTc = xc + r1 * cos(alpha);
@@ -233,7 +230,7 @@ static void knb_update_ticks(t_knb *x, t_glist *glist)
 
 static void knb_draw_update(t_knb *x, t_glist *glist)
 {
-    if (glist_isvisible(glist))
+    if(glist_isvisible(glist))
     {
         knb_update_knob(x, glist);
     }
@@ -391,29 +388,29 @@ static void knb_save(t_gobj *z, t_binbuf *b)
 
 void knb_check_wh(t_knb *x, int w, int h)
 {
-    if (w < MIN_SIZE * IEMGUI_ZOOM(x))
+    if(w < MIN_SIZE * IEMGUI_ZOOM(x))
         w = MIN_SIZE * IEMGUI_ZOOM(x);
 
     x->x_gui.x_w = w;
 
-    if (h < 5) h = 5;
+    if(h < 5) h = 5;
 
     x->x_gui.x_h = h;
 }
 
 void knb_check_minmax(t_knb *x, double min, double max)
 {
-    if (x->x_lin0_log1)
+    if(x->x_lin0_log1)
     {
-        if ((min == 0.0) && (max == 0.0))
+        if((min == 0.0) && (max == 0.0))
             max = 1.0;
-        if (max > 0.0)
+        if(max > 0.0)
         {
-            if (min <= 0.0) min = 0.01 * max;
+            if(min <= 0.0) min = 0.01 * max;
         }
         else
         {
-            if (min > 0.0) max = 0.01 * min;
+            if(min > 0.0) max = 0.01 * min;
         }
     }
     x->x_min = min;
@@ -454,12 +451,12 @@ static t_float knb_getfval(t_knb *x)
     if(pos < 0.0) pos = 0.0;
     else if(pos > 1.0) pos = 1.0;
 
-    if (x->x_lin0_log1)
+    if(x->x_lin0_log1)
         fval = x->x_min * exp(log(x->x_max / x->x_min) * pos);
     else
         fval = pos * (x->x_max - x->x_min) + x->x_min;
 
-    if ((fval < 1.0e-10) && (fval > -1.0e-10))
+    if((fval < 1.0e-10) && (fval > -1.0e-10))
         fval = 0.0;
     return (fval);
 }
@@ -469,28 +466,28 @@ static void knb_set(t_knb *x, t_floatarg f)
     float old = x->x_pos;
 
     x->x_fval = f;
-    if (x->x_min > x->x_max)
+    if(x->x_min > x->x_max)
     {
-        if (f > x->x_min)
+        if(f > x->x_min)
             f = x->x_min;
-        if (f < x->x_max)
+        if(f < x->x_max)
             f = x->x_max;
     }
     else
     {
-        if (f > x->x_max)
+        if(f > x->x_max)
             f = x->x_max;
-        if (f < x->x_min)
+        if(f < x->x_min)
             f = x->x_min;
     }
-    if (x->x_lin0_log1)
+    if(x->x_lin0_log1)
         x->x_pos = log(f/x->x_min) / log(x->x_max/x->x_min);
     else
         x->x_pos = (f - x->x_min) / (x->x_max - x->x_min);
 
     x->x_pos = x->x_pos * (1 - 2 * POS_MARGIN) + POS_MARGIN;
 
-    if (x->x_pos != old)
+    if(x->x_pos != old)
         (*x->x_gui.x_draw)(x, x->x_gui.x_glist, IEM_GUI_DRAW_MODE_UPDATE);
 }
 
@@ -498,13 +495,13 @@ static void knb_bang(t_knb *x)
 {
     double out;
 
-    if (pd_compatibilitylevel < 46)
+    if(pd_compatibilitylevel < 46)
         out = knb_getfval(x);
     else
         out = x->x_fval;
 
     outlet_float(x->x_gui.x_obj.ob_outlet, out);
-    if (x->x_gui.x_fsf.x_snd_able && x->x_gui.x_snd->s_thing)
+    if(x->x_gui.x_fsf.x_snd_able && x->x_gui.x_snd->s_thing)
         pd_float(x->x_gui.x_snd->s_thing, out);
 }
 
@@ -526,13 +523,13 @@ static void knb_dialog(t_knb *x, t_symbol *s, int argc, t_atom *argv)
 
     int sr_flags;
 
-    if (lilo != 0) lilo = 1;
+    if(lilo != 0) lilo = 1;
 
     x->x_lin0_log1 = lilo;
 
     x->x_move_mode = movemode;
 
-    if (ticks < 0) ticks = 0;
+    if(ticks < 0) ticks = 0;
 
     x->x_ticks = ticks;
     x->x_arc_width = arcwidth;
@@ -541,7 +538,7 @@ static void knb_dialog(t_knb *x, t_symbol *s, int argc, t_atom *argv)
 
     sr_flags = iemgui_dialog(&x->x_gui, srl, argc, argv);
 
-    if ('#' == acol_sym->s_name[0])
+    if('#' == acol_sym->s_name[0])
         x->x_acol = (int)strtol(acol_sym->s_name+1, 0, 16);
     else
         x->x_acol = 0x00;
@@ -564,22 +561,22 @@ static void knb_motion(t_knb *x, t_floatarg dx, t_floatarg dy)
 
     if(x->x_move_mode ==  s_k_x) d = dx;
     else if(x->x_move_mode == s_k_xy) {
-        if (fabs(dx) > fabs(dy)) d = dx;
+        if(fabs(dx) > fabs(dy)) d = dx;
     }
 
     d /= ((float)x->x_gui.x_h - IEMGUI_ZOOM(x));
 
-    if (x->x_gui.x_fsf.x_finemoved)
+    if(x->x_gui.x_fsf.x_finemoved)
         x->x_pos += d * 0.01;
     else
         x->x_pos += d;
 
-    if (x->x_pos > 1.0) x->x_pos = 1.0;
+    if(x->x_pos > 1.0) x->x_pos = 1.0;
 
-    if (x->x_pos < 0) x->x_pos = 0;
+    if(x->x_pos < 0) x->x_pos = 0;
 
     x->x_fval = knb_getfval(x);
-    if (old != x->x_pos)
+    if(old != x->x_pos)
     {
         (*x->x_gui.x_draw)(x, x->x_gui.x_glist, IEM_GUI_DRAW_MODE_UPDATE);
         knb_bang(x);
@@ -600,13 +597,13 @@ static void knb_motion_angular(t_knb *x, t_floatarg dx, t_floatarg dy)
     x->x_pos = (((int)((alpha - alphacenter + 180.0 + 360.0) * 100.0) % 36000) * 0.01
                 + (alphacenter - x->x_start_angle - 180.0)) / (x->x_end_angle - x->x_start_angle);
 
-    if (x->x_pos < 0) x->x_pos = 0;
+    if(x->x_pos < 0) x->x_pos = 0;
 
-    if (x->x_pos > 1.0) x->x_pos = 1.0;
+    if(x->x_pos > 1.0) x->x_pos = 1.0;
 
     x->x_fval = knb_getfval(x);
 
-    if (old != x->x_pos)
+    if(old != x->x_pos)
     {
         (*x->x_gui.x_draw)(x, x->x_gui.x_glist, IEM_GUI_DRAW_MODE_UPDATE);
         knb_bang(x);
@@ -622,7 +619,7 @@ static void knb_click(t_knb *x, t_floatarg xpos, t_floatarg ypos,
 
     knb_bang(x);
 
-    if (x->x_move_mode == s_k_angle)
+    if(x->x_move_mode == s_k_angle)
         glist_grab(x->x_gui.x_glist, &x->x_gui.x_obj.te_g,
             (t_glistmotionfn)knb_motion_angular, 0, xpos, ypos);
     else glist_grab(x->x_gui.x_glist, &x->x_gui.x_obj.te_g,
@@ -636,11 +633,11 @@ static int knb_newclick(t_gobj *z, struct _glist *glist,
     glist = 0;
     t_knb *x = (t_knb *)z;
 
-    if (doit)
+    if(doit)
     {
         knb_click( x, (t_floatarg)xpix, (t_floatarg)ypix, (t_floatarg)shift,
                      0, (t_floatarg)alt);
-        if (shift)
+        if(shift)
             x->x_gui.x_fsf.x_finemoved = 1;
         else
             x->x_gui.x_fsf.x_finemoved = 0;
@@ -676,7 +673,7 @@ static void knb_move_mode(t_knb *x, t_symbol *movemode)
     knb_set(x, fval);
 }
 
-static void knb_delta(t_knb *x, t_symbol *s, int ac, t_atom *av)
+/*static void knb_delta(t_knb *x, t_symbol *s, int ac, t_atom *av)
 {
     iemgui_delta((void *)x, &x->x_gui, s, ac, av);
 }
@@ -684,7 +681,7 @@ static void knb_delta(t_knb *x, t_symbol *s, int ac, t_atom *av)
 static void knb_pos(t_knb *x, t_symbol *s, int ac, t_atom *av)
 {
     iemgui_pos((void *)x, &x->x_gui, s, ac, av);
-}
+}*/
 
 static void knb_range(t_knb *x, t_symbol *s, int ac, t_atom *av)
 {
@@ -747,14 +744,14 @@ static void knb_init(t_knb *x, t_floatarg f)
 static void knb_arc(t_knb *x, t_floatarg arcwidth)
 {
     int realw = x->x_gui.x_w / IEMGUI_ZOOM(x);
-    if (arcwidth > (realw - 1) / 2)
+    if(arcwidth > (realw - 1) / 2)
         arcwidth = (realw - 1) / 2;
 
-    if (arcwidth < -((realw - 1) / 2 + 1))
+    if(arcwidth < -((realw - 1) / 2 + 1))
         arcwidth = -((realw - 1) / 2 + 1);
 
     x->x_arc_width = arcwidth;
-    if (glist_isvisible(x->x_gui.x_glist))
+    if(glist_isvisible(x->x_gui.x_glist))
     {
         knb_draw_config(x, x->x_gui.x_glist);
         knb_draw_update(x, x->x_gui.x_glist);
@@ -764,9 +761,9 @@ static void knb_arc(t_knb *x, t_floatarg arcwidth)
 static void knb_ticks(t_knb *x, t_floatarg f)
 {
     x->x_ticks = (int)f;
-    if (f <= 0) x->x_ticks = 0;
+    if(f <= 0) x->x_ticks = 0;
 
-    if (glist_isvisible(x->x_gui.x_glist))
+    if(glist_isvisible(x->x_gui.x_glist))
     {
         knb_update_ticks(x, x->x_gui.x_glist);
     }
@@ -776,34 +773,34 @@ static void knb_angle(t_knb *x, t_floatarg start, t_floatarg end)
 {
     float tmp;
 
-    if (start < -360) start = -360;
-    else if (start > 360) start = 360;
+    if(start < -360) start = -360;
+    else if(start > 360) start = 360;
 
-    if (end < -360) end = -360;
-    else if (end > 360) end = 360;
+    if(end < -360) end = -360;
+    else if(end > 360) end = 360;
 
-    if (end < start)
+    if(end < start)
     {
         tmp = start;
         start = end;
         end = tmp;
     }
 
-    if ((end - start) > 360) end = start + 360;
+    if((end - start) > 360) end = start + 360;
 
-    if (end == start) end = start + 1;
+    if(end == start) end = start + 1;
 
     x->x_start_angle = start;
     x->x_end_angle = end;
     knb_set(x, x->x_fval);
-    if (glist_isvisible(x->x_gui.x_glist)) knb_update_ticks(x, x->x_gui.x_glist);
+    if(glist_isvisible(x->x_gui.x_glist)) knb_update_ticks(x, x->x_gui.x_glist);
     knb_draw_update(x, x->x_gui.x_glist);
 }
 
 static void knb_float(t_knb *x, t_floatarg f)
 {
     knb_set(x, f);
-    if (x->x_gui.x_fsf.x_put_in2out)
+    if(x->x_gui.x_fsf.x_put_in2out)
         knb_bang(x);
 }
 
@@ -812,14 +809,14 @@ static void knb_zoom(t_knb *x, t_floatarg f)
     iemgui_zoom(&x->x_gui, f);
 }
 
-static void knb_loadbang(t_knb *x, t_floatarg action)
+/*static void knb_loadbang(t_knb *x, t_floatarg action)
 {
-    if (action == LB_LOAD && x->x_gui.x_isa.x_loadinit)
+    if(action == LB_LOAD && x->x_gui.x_isa.x_loadinit)
     {
         (*x->x_gui.x_draw)(x, x->x_gui.x_glist, IEM_GUI_DRAW_MODE_UPDATE);
         knb_bang(x);
     }
-}
+}*/
 
 static void *knb_new(t_symbol *s, int argc, t_atom *argv)
 {
@@ -843,7 +840,7 @@ static void *knb_new(t_symbol *s, int argc, t_atom *argv)
 
     IEMGUI_SETDRAWFUNCTIONS(x, knb);
 
-    if ((argc >= 17)&&IS_A_FLOAT(argv,0)&&IS_A_FLOAT(argv,1)
+    if((argc >= 17)&&IS_A_FLOAT(argv,0)&&IS_A_FLOAT(argv,1)
             &&IS_A_FLOAT(argv,2)&&IS_A_FLOAT(argv,3)
             &&IS_A_FLOAT(argv,4)&&IS_A_FLOAT(argv,5)
             &&(IS_A_SYMBOL(argv,6)||IS_A_FLOAT(argv,6))
@@ -871,7 +868,7 @@ static void *knb_new(t_symbol *s, int argc, t_atom *argv)
     else iemgui_new_getnames(&x->x_gui, 6, 0);
 
     argc -= 17; argv += 17;
-    if ((argc > 5) && (IS_A_FLOAT(argv,1))
+    if((argc > 5) && (IS_A_FLOAT(argv,1))
         && (IS_A_SYMBOL(argv,2)) && (IS_A_FLOAT(argv,3))
         && (IS_A_FLOAT(argv,4)) && (IS_A_FLOAT(argv,5)))
     {
@@ -891,47 +888,47 @@ static void *knb_new(t_symbol *s, int argc, t_atom *argv)
     x->x_gui.x_fsf.x_rcv_able = (0 != x->x_gui.x_rcv);
     x->x_gui.x_glist = (t_glist *)canvas_getcurrent();
 
-    if (lilo != 0) lilo = 1;
+    if(lilo != 0) lilo = 1;
 
     x->x_lin0_log1 = lilo;
 
     x->x_move_mode = movemode;
 
-    if (v < 0.0) v = 0.0;
-    if (v > 1.0) v = 1.0;
+    if(v < 0.0) v = 0.0;
+    if(v > 1.0) v = 1.0;
 
-    if (x->x_gui.x_isa.x_loadinit)
+    if(x->x_gui.x_isa.x_loadinit)
         x->x_pos = v;
     else
         x->x_pos = 0;
 
-    if (ticks < 0) ticks = 0;
-    if (ticks > 100) ticks = 100;
+    if(ticks < 0) ticks = 0;
+    if(ticks > 100) ticks = 100;
 
     x->x_ticks = ticks;
 
-    if (x->x_gui.x_fsf.x_font_style == 1) strcpy(x->x_gui.x_font, "helvetica");
-    else if (x->x_gui.x_fsf.x_font_style == 2) strcpy(x->x_gui.x_font, "times");
+    if(x->x_gui.x_fsf.x_font_style == 1) strcpy(x->x_gui.x_font, "helvetica");
+    else if(x->x_gui.x_fsf.x_font_style == 2) strcpy(x->x_gui.x_font, "times");
     else
     {
         x->x_gui.x_fsf.x_font_style = 0;
         strcpy(x->x_gui.x_font, sys_font);
     }
 
-    if (x->x_gui.x_fsf.x_rcv_able)
+    if(x->x_gui.x_fsf.x_rcv_able)
         pd_bind(&x->x_gui.x_obj.ob_pd, x->x_gui.x_rcv);
 
     x->x_gui.x_ldx = ldx;
     x->x_gui.x_ldy = ldy;
 
-    if (fs < 4) fs = 4;
+    if(fs < 4) fs = 4;
 
     x->x_gui.x_fontsize = fs;
 
     x->x_arc_width = arcwidth;
     x->x_start_angle = start_angle;
     x->x_end_angle = end_angle;
-    if ('#' == acol_sym->s_name[0])
+    if('#' == acol_sym->s_name[0])
         x->x_acol = (int)strtol(acol_sym->s_name+1, 0, 16);
 
     iemgui_verify_snd_ne_rcv(&x->x_gui);
@@ -946,7 +943,7 @@ static void *knb_new(t_symbol *s, int argc, t_atom *argv)
 
 static void knb_free(t_knb *x)
 {
-    if (x->x_gui.x_fsf.x_rcv_able)
+    if(x->x_gui.x_fsf.x_rcv_able)
         pd_unbind(&x->x_gui.x_obj.ob_pd, x->x_gui.x_rcv);
     gfxstub_deleteforkey(x);
 }
@@ -957,21 +954,20 @@ void knob_setup(void){
     s_k_xy = gensym("xy");
     s_k_angle = gensym("angle");
     knb_class = class_new(gensym("knob"), (t_newmethod)knb_new,
-                            (t_method)knb_free, sizeof(t_knb), 0, A_GIMME, 0);
+        (t_method)knb_free, sizeof(t_knb), 0, A_GIMME, 0);
     class_addbang(knb_class,knb_bang);
     class_addfloat(knb_class,knb_float);
     class_addmethod(knb_class, (t_method)knb_click, gensym("click"),
-                    A_FLOAT, A_FLOAT, A_FLOAT, A_FLOAT, A_FLOAT, 0);
-    class_addmethod(knb_class, (t_method)knb_motion, gensym("motion"),
-                    A_FLOAT, A_FLOAT, 0);
+        A_FLOAT, A_FLOAT, A_FLOAT, A_FLOAT, A_FLOAT, 0);
+    class_addmethod(knb_class, (t_method)knb_motion, gensym("motion"), A_FLOAT, A_FLOAT, 0);
     class_addmethod(knb_class, (t_method)knb_dialog, gensym("dialog"), A_GIMME, 0);
-    class_addmethod(knb_class, (t_method)knb_loadbang, gensym("loadbang"), A_DEFFLOAT, 0);
+//    class_addmethod(knb_class, (t_method)knb_loadbang, gensym("loadbang"), A_DEFFLOAT, 0);
+//    class_addmethod(knb_class, (t_method)knb_delta, gensym("delta"), A_GIMME, 0);
+//    class_addmethod(knb_class, (t_method)knb_pos, gensym("pos"), A_GIMME, 0);
     class_addmethod(knb_class, (t_method)knb_set, gensym("set"), A_FLOAT, 0);
     class_addmethod(knb_class, (t_method)knb_size, gensym("size"), A_FLOAT, 0);
     class_addmethod(knb_class, (t_method)knb_sensitivity, gensym("sensitivity"), A_FLOAT, 0);
     class_addmethod(knb_class, (t_method)knb_move_mode, gensym("move_mode"), A_SYMBOL, 0);
-    class_addmethod(knb_class, (t_method)knb_delta, gensym("delta"), A_GIMME, 0);
-    class_addmethod(knb_class, (t_method)knb_pos, gensym("pos"), A_GIMME, 0);
     class_addmethod(knb_class, (t_method)knb_range, gensym("range"), A_GIMME, 0);
     class_addmethod(knb_class, (t_method)knb_color, gensym("color"), A_GIMME, 0);
     class_addmethod(knb_class, (t_method)knb_send, gensym("send"), A_DEFSYM, 0);
