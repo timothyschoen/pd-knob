@@ -425,6 +425,7 @@ static void knb_bang(t_knb *x){
         pd_float(x->x_gui.x_snd->s_thing, out);
 }
 
+#define SETCOLOR(a, col) do {char color[MAXPDSTRING]; snprintf(color, MAXPDSTRING-1, "#%06x", 0xffffff & col); color[MAXPDSTRING-1] = 0; SETSYMBOL(a, gensym(color));} while(0)
 static void knb_dialog(t_knb *x, t_symbol *s, int argc, t_atom *argv){
     s = NULL;
     t_symbol *srl[3];
@@ -442,6 +443,19 @@ static void knb_dialog(t_knb *x, t_symbol *s, int argc, t_atom *argv){
     int sr_flags;
     if(lilo != 0)
         lilo = 1;
+    t_atom undo[23];
+    iemgui_setdialogatoms(&x->x_gui, 23, undo);
+    SETFLOAT(undo+2, x->x_min);
+    SETFLOAT(undo+3, x->x_max);
+    SETFLOAT(undo+4, x->x_lin0_log1);
+    SETSYMBOL(undo+17, x->x_move_mode);
+    SETFLOAT(undo+18, x->x_ticks);
+    SETCOLOR(undo+19, x->x_acol);
+    SETFLOAT(undo+20, x->x_arc_width);
+    SETFLOAT(undo+21, x->x_start_angle);
+    SETFLOAT(undo+22, x->x_end_angle);
+    pd_undo_set_objectstate(x->x_gui.x_glist, (t_pd*)x, gensym("dialog"),
+        23, undo, argc, argv);
     x->x_lin0_log1 = lilo;
     x->x_move_mode = movemode;
     if(ticks < 0)
