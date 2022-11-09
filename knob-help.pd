@@ -419,8 +419,8 @@
 #X restore 454 178 pd +parameters;
 #X text 68 91 [knob] is a GUI knob.;
 #X floatatom 195 193 8 0 0 0 - - - 12;
-#X obj 195 131 else/knob 50 128 0 127 0 0 empty empty empty 0 -8 0 10 #dfdfdf #000000 #000000 0.314961 xy 0 #000000 0 -135 135;
+#X obj 195 131 else/knob 50 128 0 127 0 0 empty empty empty 0 -8 0 10 #dfdfdf #000000 #000000 0 xy 0 #000000 0 -135 135;
 #X text 180 411 float;
-#X text 227 411 - knob value;
 #X text 227 237 - sets and outpus value, f 53;
+#X text 227 411 - knob's value;
 #X connect 41 0 40 0;
