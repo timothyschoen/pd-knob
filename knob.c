@@ -838,4 +838,6 @@ void knob_setup(void){
     class_setwidget(knb_class, &knb_widgetbehavior);
     class_setsavefn(knb_class, knb_save);
     class_setpropertiesfn(knb_class, knb_properties);
+
+    #include "knob_dialog.c"
 }
