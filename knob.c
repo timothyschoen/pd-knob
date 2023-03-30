@@ -203,12 +203,7 @@ static void knb_draw_config(t_knb *x,t_glist *glist){
     char tag[128];
     const int zoom = IEMGUI_ZOOM(x);
     t_iemgui *iemgui = &x->x_gui;
-    t_atom fontatoms[3];
-    SETSYMBOL(fontatoms+0, gensym(iemgui->x_font));
-    SETFLOAT (fontatoms+1, -iemgui->x_fontsize*zoom);
-    SETSYMBOL(fontatoms+2, gensym(sys_fontweight));
     pdgui_vmess(0, "crs rA rk", canvas, "itemconfigure", tag,
-        "-font", 3, fontatoms,
         "-fill", (x->x_gui.x_fsf.x_selected ? IEM_GUI_COLOR_SELECTED : x->x_gui.x_lcol));
     x->x_arc_visible = (x->x_arc_width != 0);
     sprintf(tag, "%pARC", x);
@@ -266,11 +261,8 @@ static void knb_draw_new(t_knb *x, t_glist *glist){
 
 static void knb_draw_select(t_knb *x,t_glist *glist){
     t_canvas *canvas = glist_getcanvas(glist);
-    int lcol = x->x_gui.x_lcol;
     int col = IEM_GUI_COLOR_NORMAL;
     char tag[128];
-    if(x->x_gui.x_fsf.x_selected)
-        lcol = col = IEM_GUI_COLOR_SELECTED;
     sprintf(tag, "%pSELECT", x);
     pdgui_vmess(0, "crs rk", canvas, "itemconfigure", tag, "-outline", col);
 }
