@@ -207,9 +207,9 @@ static void knb_draw_config(t_knb *x,t_glist *glist){
     SETSYMBOL(fontatoms+0, gensym(iemgui->x_font));
     SETFLOAT (fontatoms+1, -iemgui->x_fontsize*zoom);
     SETSYMBOL(fontatoms+2, gensym(sys_fontweight));
-    pdgui_vmess(0, "crs rA rk", canvas, "itemconfigure", tag,
-        "-font", 3, fontatoms,
-        "-fill", (x->x_gui.x_fsf.x_selected ? IEM_GUI_COLOR_SELECTED : x->x_gui.x_lcol));
+//    pdgui_vmess(0, "crs rA rk", canvas, "itemconfigure", tag,
+//        "-font", 3, fontatoms,
+//        "-fill", (x->x_gui.x_fsf.x_selected ? IEM_GUI_COLOR_SELECTED : x->x_gui.x_lcol));
     x->x_arc_visible = (x->x_arc_width != 0);
     sprintf(tag, "%pARC", x);
     pdgui_vmess(0, "crs rk rk rs ri", canvas, "itemconfigure", tag,
