@@ -1,4 +1,5 @@
-// stolen from vanilla's knb
+// stolen from vanilla's knob by Antoine Rousseau
+// (see https://github.com/pure-data/pure-data/pull/1738)
 
 #include <stdlib.h>
 #include <string.h>
@@ -201,13 +202,7 @@ static void knb_draw_config(t_knb *x,t_glist *glist){
     int ypos = text_ypix(&x->x_gui.x_obj, glist);
     char tag[128];
     const int zoom = IEMGUI_ZOOM(x);
-    t_iemgui *iemgui = &x->x_gui;
-    t_atom fontatoms[3];
-    SETSYMBOL(fontatoms+0, gensym(iemgui->x_font));
-    SETFLOAT (fontatoms+1, -iemgui->x_fontsize*zoom);
-    SETSYMBOL(fontatoms+2, gensym(sys_fontweight));
     pdgui_vmess(0, "crs rA rk", canvas, "itemconfigure", tag,
-        "-font", 3, fontatoms,
         "-fill", (x->x_gui.x_fsf.x_selected ? IEM_GUI_COLOR_SELECTED : x->x_gui.x_lcol));
     x->x_arc_visible = (x->x_arc_width != 0);
     sprintf(tag, "%pARC", x);
@@ -265,13 +260,22 @@ static void knb_draw_new(t_knb *x, t_glist *glist){
 
 static void knb_draw_select(t_knb *x,t_glist *glist){
     t_canvas *canvas = glist_getcanvas(glist);
-    int lcol = x->x_gui.x_lcol;
-    int col = IEM_GUI_COLOR_NORMAL;
+    int col = x->x_gui.x_fsf.x_selected ? IEM_GUI_COLOR_SELECTED : IEM_GUI_COLOR_NORMAL;
     char tag[128];
-    if(x->x_gui.x_fsf.x_selected)
-        lcol = col = IEM_GUI_COLOR_SELECTED;
     sprintf(tag, "%pSELECT", x);
     pdgui_vmess(0, "crs rk", canvas, "itemconfigure", tag, "-outline", col);
+}
+
+/*static void knob_displace(t_gobj *z, t_glist *glist, int dx, int dy){
+    t_knb *x = (t_knb *)z;
+    x->x_gui.x_obj.te_xpix += dx, x->x_gui.x_obj.te_ypix += dy;
+    sys_vgui(".x%p.c move %pOBJ %d %d\n", glist_getcanvas(glist), x, dx, dy);
+//    sys_vgui(".x%p.c move %pALL %d %d\n", glist_getcanvas(glist), x, dx*x->x_zoom, dy*x->x_zoom);
+    canvas_fixlinesfor(glist, (t_text*)x);
+}*/
+
+static void knob_delete(t_gobj *z, t_glist *glist){
+    canvas_deletelinesfor(glist, (t_text *)z);
 }
 
 // ------------------------ knb widgetbehaviour-----------------------------
@@ -551,7 +555,7 @@ static void knb_range(t_knb *x, t_symbol *s, int ac, t_atom *av){
                        (double)atom_getfloatarg(1, ac, av));
 }
 
-    /* from g_all_guis.c: */
+/* from g_all_guis.c: */
 extern int iemgui_compatible_colorarg(int index, int argc, t_atom* argv);
 
 static void knb_color(t_knb *x, t_symbol *s, int ac, t_atom *av){
@@ -765,15 +769,16 @@ void knob_setup(void){
     class_addmethod(knb_class, (t_method)knb_ticks, gensym("ticks"), A_DEFFLOAT, 0);
     class_addmethod(knb_class, (t_method)knb_zoom, gensym("zoom"), A_CANT, 0);
     knb_widgetbehavior.w_getrectfn  = knb_getrect;
+//    knb_widgetbehavior.w_displacefn = knob_displace;
     knb_widgetbehavior.w_displacefn = iemgui_displace;
     knb_widgetbehavior.w_selectfn   = iemgui_select;
     knb_widgetbehavior.w_activatefn = NULL;
-    knb_widgetbehavior.w_deletefn   = iemgui_delete;
+    knb_widgetbehavior.w_deletefn   = knob_delete;
     knb_widgetbehavior.w_visfn      = iemgui_vis;
     knb_widgetbehavior.w_clickfn    = knb_newclick;
     class_setwidget(knb_class, &knb_widgetbehavior);
     class_setsavefn(knb_class, knb_save);
     class_setpropertiesfn(knb_class, knb_properties);
 
-    #include "knob_dialog.c"
+#include "knob_dialog.c"
 }
