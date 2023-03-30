@@ -202,14 +202,8 @@ static void knb_draw_config(t_knb *x,t_glist *glist){
     int ypos = text_ypix(&x->x_gui.x_obj, glist);
     char tag[128];
     const int zoom = IEMGUI_ZOOM(x);
-    t_iemgui *iemgui = &x->x_gui;
-    t_atom fontatoms[3];
-    SETSYMBOL(fontatoms+0, gensym(iemgui->x_font));
-    SETFLOAT (fontatoms+1, -iemgui->x_fontsize*zoom);
-    SETSYMBOL(fontatoms+2, gensym(sys_fontweight));
-//    pdgui_vmess(0, "crs rA rk", canvas, "itemconfigure", tag,
-//        "-font", 3, fontatoms,
-//        "-fill", (x->x_gui.x_fsf.x_selected ? IEM_GUI_COLOR_SELECTED : x->x_gui.x_lcol));
+    pdgui_vmess(0, "crs rk", canvas, "itemconfigure", tag,
+        "-fill", (x->x_gui.x_fsf.x_selected ? IEM_GUI_COLOR_SELECTED : x->x_gui.x_lcol));
     x->x_arc_visible = (x->x_arc_width != 0);
     sprintf(tag, "%pARC", x);
     pdgui_vmess(0, "crs rk rk rs ri", canvas, "itemconfigure", tag,
@@ -266,11 +260,8 @@ static void knb_draw_new(t_knb *x, t_glist *glist){
 
 static void knb_draw_select(t_knb *x,t_glist *glist){
     t_canvas *canvas = glist_getcanvas(glist);
-    int lcol = x->x_gui.x_lcol;
-    int col = IEM_GUI_COLOR_NORMAL;
+    int col = x->x_gui.x_fsf.x_selected ? IEM_GUI_COLOR_SELECTED : IEM_GUI_COLOR_NORMAL;
     char tag[128];
-    if(x->x_gui.x_fsf.x_selected)
-        lcol = col = IEM_GUI_COLOR_SELECTED;
     sprintf(tag, "%pSELECT", x);
     pdgui_vmess(0, "crs rk", canvas, "itemconfigure", tag, "-outline", col);
 }
@@ -415,13 +406,16 @@ static void knb_dialog(t_knb *x, t_symbol *s, int argc, t_atom *argv){
     double min = (double)atom_getfloatarg(2, argc, argv);
     double max = (double)atom_getfloatarg(3, argc, argv);
     int lilo_ignored = (int)atom_getintarg(4, argc, argv);
-    t_symbol *movemode = atom_getsymbolarg(17, argc, argv);
-    int ticks = (int)atom_getintarg(18, argc, argv);
-    t_symbol *acol_sym = atom_getsymbolarg(19, argc, argv);
-    int arcwidth = (int)atom_getintarg(20, argc, argv);
-    int startangle = (int)atom_getintarg(21, argc, argv);
-    int endangle = (int)atom_getintarg(22, argc, argv);
+    t_symbol *movemode = atom_getsymbolarg(16, argc, argv);
+    int ticks = (int)atom_getintarg(17, argc, argv);
+    t_symbol *acol_sym = atom_getsymbolarg(18, argc, argv);
+    int arcwidth = (int)atom_getintarg(19, argc, argv);
+    int startangle = (int)atom_getintarg(20, argc, argv);
+    int endangle = (int)atom_getintarg(21, argc, argv);
     int sr_flags;
+
+    printf("%f\n", x->x_start_angle);
+    printf("%f\n", x->x_end_angle);
 
     t_atom undo[23];
     iemgui_setdialogatoms(&x->x_gui, 23, undo);
@@ -789,5 +783,5 @@ void knob_setup(void){
     class_setsavefn(knb_class, knb_save);
     class_setpropertiesfn(knb_class, knb_properties);
 
-    #include "knob_dialog.c"
+#include "knob_dialog.c"
 }
