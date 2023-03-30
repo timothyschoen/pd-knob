@@ -202,7 +202,7 @@ static void knb_draw_config(t_knb *x,t_glist *glist){
     int ypos = text_ypix(&x->x_gui.x_obj, glist);
     char tag[128];
     const int zoom = IEMGUI_ZOOM(x);
-    pdgui_vmess(0, "crs rA rk", canvas, "itemconfigure", tag,
+    pdgui_vmess(0, "crs rk", canvas, "itemconfigure", tag,
         "-fill", (x->x_gui.x_fsf.x_selected ? IEM_GUI_COLOR_SELECTED : x->x_gui.x_lcol));
     x->x_arc_visible = (x->x_arc_width != 0);
     sprintf(tag, "%pARC", x);
@@ -406,13 +406,16 @@ static void knb_dialog(t_knb *x, t_symbol *s, int argc, t_atom *argv){
     double min = (double)atom_getfloatarg(2, argc, argv);
     double max = (double)atom_getfloatarg(3, argc, argv);
     int lilo_ignored = (int)atom_getintarg(4, argc, argv);
-    t_symbol *movemode = atom_getsymbolarg(17, argc, argv);
-    int ticks = (int)atom_getintarg(18, argc, argv);
-    t_symbol *acol_sym = atom_getsymbolarg(19, argc, argv);
-    int arcwidth = (int)atom_getintarg(20, argc, argv);
-    int startangle = (int)atom_getintarg(21, argc, argv);
-    int endangle = (int)atom_getintarg(22, argc, argv);
+    t_symbol *movemode = atom_getsymbolarg(16, argc, argv);
+    int ticks = (int)atom_getintarg(17, argc, argv);
+    t_symbol *acol_sym = atom_getsymbolarg(18, argc, argv);
+    int arcwidth = (int)atom_getintarg(19, argc, argv);
+    int startangle = (int)atom_getintarg(20, argc, argv);
+    int endangle = (int)atom_getintarg(21, argc, argv);
     int sr_flags;
+
+    printf("%f\n", x->x_start_angle);
+    printf("%f\n", x->x_end_angle);
 
     t_atom undo[23];
     iemgui_setdialogatoms(&x->x_gui, 23, undo);
