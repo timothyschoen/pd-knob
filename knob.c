@@ -1,4 +1,5 @@
-// stolen from vanilla's knb
+// stolen from vanilla's knob by Antoine Rousseau
+// (see https://github.com/pure-data/pure-data/pull/1738)
 
 #include <stdlib.h>
 #include <string.h>
@@ -272,6 +273,18 @@ static void knb_draw_select(t_knb *x,t_glist *glist){
         lcol = col = IEM_GUI_COLOR_SELECTED;
     sprintf(tag, "%pSELECT", x);
     pdgui_vmess(0, "crs rk", canvas, "itemconfigure", tag, "-outline", col);
+}
+
+/*static void knob_displace(t_gobj *z, t_glist *glist, int dx, int dy){
+    t_knb *x = (t_knb *)z;
+    x->x_gui.x_obj.te_xpix += dx, x->x_gui.x_obj.te_ypix += dy;
+    sys_vgui(".x%p.c move %pOBJ %d %d\n", glist_getcanvas(glist), x, dx, dy);
+//    sys_vgui(".x%p.c move %pALL %d %d\n", glist_getcanvas(glist), x, dx*x->x_zoom, dy*x->x_zoom);
+    canvas_fixlinesfor(glist, (t_text*)x);
+}*/
+
+static void knob_delete(t_gobj *z, t_glist *glist){
+    canvas_deletelinesfor(glist, (t_text *)z);
 }
 
 // ------------------------ knb widgetbehaviour-----------------------------
@@ -551,7 +564,7 @@ static void knb_range(t_knb *x, t_symbol *s, int ac, t_atom *av){
                        (double)atom_getfloatarg(1, ac, av));
 }
 
-    /* from g_all_guis.c: */
+/* from g_all_guis.c: */
 extern int iemgui_compatible_colorarg(int index, int argc, t_atom* argv);
 
 static void knb_color(t_knb *x, t_symbol *s, int ac, t_atom *av){
@@ -765,10 +778,11 @@ void knob_setup(void){
     class_addmethod(knb_class, (t_method)knb_ticks, gensym("ticks"), A_DEFFLOAT, 0);
     class_addmethod(knb_class, (t_method)knb_zoom, gensym("zoom"), A_CANT, 0);
     knb_widgetbehavior.w_getrectfn  = knb_getrect;
+//    knb_widgetbehavior.w_displacefn = knob_displace;
     knb_widgetbehavior.w_displacefn = iemgui_displace;
     knb_widgetbehavior.w_selectfn   = iemgui_select;
     knb_widgetbehavior.w_activatefn = NULL;
-    knb_widgetbehavior.w_deletefn   = iemgui_delete;
+    knb_widgetbehavior.w_deletefn   = knob_delete;
     knb_widgetbehavior.w_visfn      = iemgui_vis;
     knb_widgetbehavior.w_clickfn    = knb_newclick;
     class_setwidget(knb_class, &knb_widgetbehavior);
