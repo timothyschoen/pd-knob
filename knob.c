@@ -197,13 +197,11 @@ static void knb_draw_update(t_knb *x, t_glist *glist){
 }
 
 static void knb_draw_config(t_knb *x,t_glist *glist){
-    t_canvas *canvas=glist_getcanvas(glist);
+    t_canvas *canvas = glist_getcanvas(glist);
     int xpos = text_xpix(&x->x_gui.x_obj, glist);
     int ypos = text_ypix(&x->x_gui.x_obj, glist);
     char tag[128];
     const int zoom = IEMGUI_ZOOM(x);
-    pdgui_vmess(0, "crs rk", canvas, "itemconfigure", tag,
-        "-fill", (x->x_gui.x_fsf.x_selected ? IEM_GUI_COLOR_SELECTED : x->x_gui.x_lcol));
     x->x_arc_visible = (x->x_arc_width != 0);
     sprintf(tag, "%pARC", x);
     pdgui_vmess(0, "crs rk rk rs ri", canvas, "itemconfigure", tag,
@@ -244,7 +242,7 @@ static void knb_draw_new(t_knb *x, t_glist *glist){
     sprintf(tag_select, "%pSELECT", x);
     sprintf(tag, "%pBASE", x);
     pdgui_vmess(0, "crr iiii rS", canvas, "create", "oval",
-         0, 0, 0, 0, "-tags", 2, seltags);
+         0, 0, 0, 0, "-tags", 3, seltags);
     knb_draw_io(x, glist, 0);
     sprintf(tag, "%pARC", x);
     pdgui_vmess(0, "crr iiii rS", canvas, "create", "arc",
@@ -258,7 +256,7 @@ static void knb_draw_new(t_knb *x, t_glist *glist){
     knb_draw_config(x, glist);
 }
 
-static void knb_draw_select(t_knb *x,t_glist *glist){
+static void knb_draw_select(t_knb *x, t_glist *glist){
     t_canvas *canvas = glist_getcanvas(glist);
     int col = x->x_gui.x_fsf.x_selected ? IEM_GUI_COLOR_SELECTED : IEM_GUI_COLOR_NORMAL;
     char tag[128];
@@ -266,12 +264,14 @@ static void knb_draw_select(t_knb *x,t_glist *glist){
     pdgui_vmess(0, "crs rk", canvas, "itemconfigure", tag, "-outline", col);
 }
 
-/*static void knob_displace(t_gobj *z, t_glist *glist, int dx, int dy){
+/*static void knb_select(t_gobj *z, t_glist *glist, int sel){
     t_knb *x = (t_knb *)z;
-    x->x_gui.x_obj.te_xpix += dx, x->x_gui.x_obj.te_ypix += dy;
-    sys_vgui(".x%p.c move %pOBJ %d %d\n", glist_getcanvas(glist), x, dx, dy);
-//    sys_vgui(".x%p.c move %pALL %d %d\n", glist_getcanvas(glist), x, dx*x->x_zoom, dy*x->x_zoom);
-    canvas_fixlinesfor(glist, (t_text*)x);
+    x->x_gui.x_fsf.x_selected = sel;
+    t_canvas *cv = glist_getcanvas(glist);
+    if(sel)
+        sys_vgui(".x%lx.c itemconfigure %pSELECT -outline blue\n", cv, x);
+    else
+        sys_vgui(".x%lx.c itemconfigure %pSELECT -outline black\n", cv, x);
 }*/
 
 static void knob_delete(t_gobj *z, t_glist *glist){
@@ -303,7 +303,8 @@ static void knb_save(t_gobj *z, t_binbuf *b){
         0, iem_symargstoint(&x->x_gui.x_isa),
         srl[0], srl[1], srl[2],
         x->x_gui.x_ldx, x->x_gui.x_ldy,
-        iem_fstyletoint(&x->x_gui.x_fsf), x->x_gui.x_fontsize,
+        0, // was font style
+        0, // was font size
         bflcol[0], bflcol[1], bflcol[2],
         x->x_pos, x->x_move_mode, x->x_ticks,
         gensym(acol_str), x->x_arc_width, x->x_start_angle, x->x_end_angle);
@@ -342,8 +343,10 @@ static void knb_properties(t_gobj *z, t_glist *owner){
         "", -1,
         srl[0]?srl[0]->s_name:"", srl[1]?srl[1]->s_name:"", srl[2]?srl[2]->s_name:"",
         x->x_gui.x_ldx, x->x_gui.x_ldy,
-        x->x_gui.x_fsf.x_font_style, x->x_gui.x_fontsize,
-        x->x_gui.x_bcol, x->x_gui.x_fcol, x->x_gui.x_lcol,
+        0, // was font style,
+        0, // was font size,
+        x->x_gui.x_bcol, x->x_gui.x_fcol,
+        0, // was x->x_gui.x_lcol,
         x->x_ticks, x->x_acol, x->x_arc_width, x->x_start_angle, x->x_end_angle);
 }
 
@@ -405,7 +408,7 @@ static void knb_dialog(t_knb *x, t_symbol *s, int argc, t_atom *argv){
     int h = (int)atom_getintarg(1, argc, argv);
     double min = (double)atom_getfloatarg(2, argc, argv);
     double max = (double)atom_getfloatarg(3, argc, argv);
-    int lilo_ignored = (int)atom_getintarg(4, argc, argv);
+//    int lilo_ignored = (int)atom_getintarg(4, argc, argv);
     t_symbol *movemode = atom_getsymbolarg(16, argc, argv);
     int ticks = (int)atom_getintarg(17, argc, argv);
     t_symbol *acol_sym = atom_getsymbolarg(18, argc, argv);
@@ -414,8 +417,8 @@ static void knb_dialog(t_knb *x, t_symbol *s, int argc, t_atom *argv){
     int endangle = (int)atom_getintarg(21, argc, argv);
     int sr_flags;
 
-    printf("%f\n", x->x_start_angle);
-    printf("%f\n", x->x_end_angle);
+//    printf("%f\n", (double)x->x_start_angle);
+//    printf("%f\n", (double)x->x_end_angle);
 
     t_atom undo[23];
     iemgui_setdialogatoms(&x->x_gui, 23, undo);
@@ -640,17 +643,15 @@ static void *knb_new(t_symbol *s, int argc, t_atom *argv){
     s = NULL;
     t_knb *x = (t_knb *)iemgui_new(knb_class);
     int width = IEM_GUI_DEFAULTSIZE * 2, height = DEFAULT_SENSITIVITY;
-    int fs = x->x_gui.x_fontsize, lilo_ignored = 0, ldx = 0, ldy = -8 * IEM_GUI_DEFAULTSIZE_SCALE;
+    int ldx = 0, ldy = -8 * IEM_GUI_DEFAULTSIZE_SCALE;
     float v = 0;
     t_symbol *movemode = s_k_xy;
     int ticks = 0, arcwidth = 0, start_angle = -135, end_angle = 135;
     t_symbol *acol_sym = gensym("#00");
     double min = 0.0, max = (double)(DEFAULT_SENSITIVITY - 1);
     iem_inttosymargs(&x->x_gui.x_isa, 0);
-    iem_inttofstyle(&x->x_gui.x_fsf, 0);
-    x->x_gui.x_bcol = 0xFCFCFC;
+    x->x_gui.x_bcol = 0xDFDFDF;
     x->x_gui.x_fcol = 0x00;
-    x->x_gui.x_lcol = 0x00;
     x->x_acol = 0x00;
     IEMGUI_SETDRAWFUNCTIONS(x, knb);
     if ((argc >= 17)&&IS_A_FLOAT(argv,0)&&IS_A_FLOAT(argv,1)
@@ -666,13 +667,11 @@ static void *knb_new(t_symbol *s, int argc, t_atom *argv){
         height = (int)atom_getintarg(1, argc, argv);
         min = (double)atom_getfloatarg(2, argc, argv);
         max = (double)atom_getfloatarg(3, argc, argv);
-        lilo_ignored = (int)atom_getintarg(4, argc, argv);
         iem_inttosymargs(&x->x_gui.x_isa, atom_getintarg(5, argc, argv));
         iemgui_new_getnames(&x->x_gui, 6, argv);
         ldx = (int)atom_getintarg(9, argc, argv);
         ldy = (int)atom_getintarg(10, argc, argv);
         iem_inttofstyle(&x->x_gui.x_fsf, atom_getintarg(11, argc, argv));
-        fs = (int)atom_getintarg(12, argc, argv);
         iemgui_all_loadcolors(&x->x_gui, argv+13, argv+14, argv+15);
         v = atom_getfloatarg(16, argc, argv);
     }
@@ -709,21 +708,10 @@ static void *knb_new(t_symbol *s, int argc, t_atom *argv){
     if(ticks > 100)
         ticks = 100;
     x->x_ticks = ticks;
-    if(x->x_gui.x_fsf.x_font_style == 1)
-        strcpy(x->x_gui.x_font, "helvetica");
-    else if(x->x_gui.x_fsf.x_font_style == 2)
-        strcpy(x->x_gui.x_font, "times");
-    else{
-        x->x_gui.x_fsf.x_font_style = 0;
-        strcpy(x->x_gui.x_font, sys_font);
-    }
     if(x->x_gui.x_fsf.x_rcv_able)
         pd_bind(&x->x_gui.x_obj.ob_pd, x->x_gui.x_rcv);
     x->x_gui.x_ldx = ldx;
     x->x_gui.x_ldy = ldy;
-    if(fs < 4)
-        fs = 4;
-    x->x_gui.x_fontsize = fs;
     x->x_arc_width = arcwidth;
     x->x_start_angle = start_angle;
     x->x_end_angle = end_angle;
@@ -750,13 +738,13 @@ void knob_setup(void){
     s_k_xy = gensym("xy");
     s_k_angle = gensym("angle");
     knb_class = class_new(gensym("knob"), (t_newmethod)knb_new,
-                            (t_method)knb_free, sizeof(t_knb), 0, A_GIMME, 0);
+        (t_method)knb_free, sizeof(t_knb), 0, A_GIMME, 0);
     class_addbang(knb_class,knb_bang);
     class_addfloat(knb_class,knb_float);
     class_addmethod(knb_class, (t_method)knb_click, gensym("click"),
-                    A_FLOAT, A_FLOAT, A_FLOAT, A_FLOAT, A_FLOAT, 0);
+        A_FLOAT, A_FLOAT, A_FLOAT, A_FLOAT, A_FLOAT, 0);
     class_addmethod(knb_class, (t_method)knb_motion, gensym("motion"),
-                    A_FLOAT, A_FLOAT, 0);
+        A_FLOAT, A_FLOAT, 0);
     class_addmethod(knb_class, (t_method)knb_dialog, gensym("dialog"), A_GIMME, 0);
     class_addmethod(knb_class, (t_method)knb_set, gensym("set"), A_FLOAT, 0);
     class_addmethod(knb_class, (t_method)knb_size, gensym("size"), A_FLOAT, 0);
@@ -775,6 +763,7 @@ void knob_setup(void){
 //    knb_widgetbehavior.w_displacefn = knob_displace;
     knb_widgetbehavior.w_displacefn = iemgui_displace;
     knb_widgetbehavior.w_selectfn   = iemgui_select;
+//    knb_widgetbehavior.w_selectfn   = knb_select;
     knb_widgetbehavior.w_activatefn = NULL;
     knb_widgetbehavior.w_deletefn   = knob_delete;
     knb_widgetbehavior.w_visfn      = iemgui_vis;
@@ -782,6 +771,5 @@ void knob_setup(void){
     class_setwidget(knb_class, &knb_widgetbehavior);
     class_setsavefn(knb_class, knb_save);
     class_setpropertiesfn(knb_class, knb_properties);
-
-#include "knob_dialog.c"
+    #include "knob_dialog.c"
 }
