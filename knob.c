@@ -31,26 +31,27 @@
 #define POS_MARGIN 0.01
 
 typedef struct _knb{
-    t_iemgui x_gui;
-    float    x_pos;         // 0-1 normalized position
-    float    x_init;
-    int      x_arc_width;
-    int      x_start_angle;
-    int      x_end_angle;
-    int      x_ticks;
-    double   x_min;
-    double   x_max;
-    t_float  x_fval;
-    int      x_acol;
-    t_symbol *x_move_mode; /* "x","y", "xy" or "angle" */
-    unsigned int      x_wiper_visible:1;
-    unsigned int      x_arc_visible:1;
-    unsigned int      x_center_visible:1;
+    t_iemgui        x_gui;
+    float           x_pos;  // 0-1 normalized position
+    float           x_exp;
+    float           x_init;
+    int             x_arc_width;
+    int             x_start_angle;
+    int             x_end_angle;
+    int             x_ticks;
+    double          x_min;
+    double          x_max;
+    t_float         x_fval;
+    int             x_acol;
+    t_symbol       *x_move_mode; // "xy" or "angle"
+    unsigned int    x_wiper_visible:1;
+    unsigned int    x_arc_visible:1;
+    unsigned int    x_center_visible:1;
 }t_knb;
 
 t_widgetbehavior knb_widgetbehavior;
 static t_class *knb_class;
-static t_symbol *s_k_x, *s_k_y, *s_k_xy, *s_k_angle;
+static t_symbol *s_k_xy, *s_k_angle;
 
 static void knb_draw_io(t_knb *x,t_glist *glist, int old_snd_rcv_flags){
     old_snd_rcv_flags = 0;
@@ -334,20 +335,34 @@ static void knb_properties(t_gobj *z, t_glist *owner){
     iemgui_properties(&x->x_gui, srl);
     pdgui_stub_vnew(&x->x_gui.x_obj.ob_pd, "pdtk_iemgui_dialog", x,
         "s s ffs ffs sfsfs i iss fs si sss ii ii kkk ikiii",
-        "knb",
+        "knb", // needed?
         "",
-        (float)(x->x_gui.x_w / IEMGUI_ZOOM(x)), (float)MIN_SIZE, "Size:",
-        (float)(x->x_gui.x_h / IEMGUI_ZOOM(x)), 0.0, "Sensitivity:",
-        "Output Range", x->x_min, "Lower:", x->x_max, "Upper:",
+        (float)(x->x_gui.x_w / IEMGUI_ZOOM(x)),
+        (float)MIN_SIZE, "Size:",
+        x->x_exp, // exp
+        0.0,
+        "Exponential:", // but not needed
+        "Range",
+        x->x_min,
+        "_", // was 'min' but wasn't used - a fucking symbol is neeeded anyway
+        x->x_max,
+        "_", // was 'max' but wasn't used
         0,
-        0, "linear", "logarithmic",
-        x->x_init, x->x_move_mode->s_name,
-        "", -1,
-        srl[0]?srl[0]->s_name:"", srl[1]?srl[1]->s_name:"", srl[2]?srl[2]->s_name:"",
-        x->x_gui.x_ldx, x->x_gui.x_ldy,
+        0,
+        "", "", // was lin/log
+        x->x_init,
+        x->x_move_mode->s_name,
+        "",
+        -1,
+        srl[0] ? srl[0]->s_name : "",
+        srl[1] ? srl[1]->s_name : "",
+        srl[2] ? srl[2]->s_name : "",
+        x->x_gui.x_ldx,
+        x->x_gui.x_ldy,
         0, // was font style,
         0, // was font size,
-        x->x_gui.x_bcol, x->x_gui.x_fcol,
+        x->x_gui.x_bcol,
+        x->x_gui.x_fcol,
         0, // was x->x_gui.x_lcol,
         x->x_ticks, x->x_acol, x->x_arc_width, x->x_start_angle, x->x_end_angle);
 }
@@ -413,11 +428,11 @@ static void knb_init(t_knb *x, t_symbol *s, int ac, t_atom *av){
 }
 
 #define SETCOLOR(a, col) do {char color[MAXPDSTRING]; snprintf(color, MAXPDSTRING-1, "#%06x", 0xffffff & col); color[MAXPDSTRING-1] = 0; SETSYMBOL(a, gensym(color));} while(0)
-static void knb_dialog(t_knb *x, t_symbol *s, int argc, t_atom *argv){
+static void knb_apply(t_knb *x, t_symbol *s, int argc, t_atom *argv){
     s = NULL;
     t_symbol *srl[3];
     int w = (int)atom_getintarg(0, argc, argv);
-    int h = (int)atom_getintarg(1, argc, argv);
+    x->x_exp = (int)atom_getintarg(1, argc, argv);
     double min = (double)atom_getfloatarg(2, argc, argv);
     double max = (double)atom_getfloatarg(3, argc, argv);
     double init = atom_getfloatarg(4, argc, argv);
@@ -449,12 +464,16 @@ static void knb_dialog(t_knb *x, t_symbol *s, int argc, t_atom *argv){
     x->x_arc_width = arcwidth;
     x->x_start_angle = startangle;
     x->x_end_angle = endangle;
-    x->x_init = init;
+    if(x->x_init != init){
+        knb_float(x, init);
+        x->x_init = x->x_fval;
+    }
     sr_flags = iemgui_dialog(&x->x_gui, srl, argc, argv);
     if('#' == acol_sym->s_name[0])
         x->x_acol = (int)strtol(acol_sym->s_name+1, 0, 16);
     else
         x->x_acol = 0x00;
+    int h = DEFAULT_SENSITIVITY;
     knb_check_wh(x, w * IEMGUI_ZOOM(x), h * IEMGUI_ZOOM(x));
     knb_check_minmax(x, min, max);
     knb_set(x, x->x_fval);
@@ -469,8 +488,7 @@ static int xm0, ym0, xm, ym;
 static void knb_motion(t_knb *x, t_floatarg dx, t_floatarg dy){
     float old = x->x_pos;
     float d = -dy;
-    if(x->x_move_mode ==  s_k_x) d = dx;
-    else if(x->x_move_mode == s_k_xy){
+    if(x->x_move_mode == s_k_xy){
         if(fabs(dx) > fabs(dy))
             d = dx;
     }
@@ -512,9 +530,7 @@ static void knb_motion_angular(t_knb *x, t_floatarg dx, t_floatarg dy){
     }
 }
 
-static void knb_click(t_knb *x, t_floatarg xpos, t_floatarg ypos,
-                        t_floatarg shift, t_floatarg ctrl, t_floatarg alt)
-{
+static void knb_click(t_knb *x, t_floatarg xpos, t_floatarg ypos, t_floatarg shift, t_floatarg ctrl, t_floatarg alt){
     alt = ctrl = shift = 0;
     xm0 = xm = xpos;
     ym0 = ym = ypos;
@@ -550,15 +566,6 @@ static void knb_size(t_knb *x, t_floatarg f){
     knb_check_wh(x, w, h);
     iemgui_size((void *)x, &x->x_gui);
     (*x->x_gui.x_draw)(x, x->x_gui.x_glist, IEM_GUI_DRAW_MODE_MOVE);
-}
-
-static void knb_sensitivity(t_knb *x, t_floatarg f){
-    int w = x->x_gui.x_w;
-    int h = (int)f * IEMGUI_ZOOM(x);
-    float fval = knb_getfval(x);
-    knb_check_wh(x, w, h);
-    iemgui_size((void *)x, &x->x_gui);
-    knb_set(x, fval);
 }
 
 static void knb_move_mode(t_knb *x, t_symbol *movemode){
@@ -647,6 +654,7 @@ static void *knb_new(t_symbol *s, int argc, t_atom *argv){
     int width = IEM_GUI_DEFAULTSIZE * 2, height = DEFAULT_SENSITIVITY;
     int ldx = 0, ldy = -8 * IEM_GUI_DEFAULTSIZE_SCALE;
     float v = 0;
+    x->x_exp = 1;
     t_symbol *movemode = s_k_xy;
     int ticks = 0, arcwidth = 0, start_angle = -135, end_angle = 135;
     t_symbol *acol_sym = gensym("#00");
@@ -727,8 +735,6 @@ static void knb_free(t_knb *x){
 }
 
 void knob_setup(void){
-    s_k_x = gensym("x");
-    s_k_y = gensym("y");
     s_k_xy = gensym("xy");
     s_k_angle = gensym("angle");
     knb_class = class_new(gensym("knob"), (t_newmethod)knb_new,
@@ -739,11 +745,10 @@ void knob_setup(void){
         A_FLOAT, A_FLOAT, A_FLOAT, A_FLOAT, A_FLOAT, 0);
     class_addmethod(knb_class, (t_method)knb_motion, gensym("motion"),
         A_FLOAT, A_FLOAT, 0);
-    class_addmethod(knb_class, (t_method)knb_dialog, gensym("dialog"), A_GIMME, 0);
+    class_addmethod(knb_class, (t_method)knb_apply, gensym("dialog"), A_GIMME, 0);
     class_addmethod(knb_class, (t_method)knb_init, gensym("init"), A_GIMME, 0);
     class_addmethod(knb_class, (t_method)knb_set, gensym("set"), A_FLOAT, 0);
     class_addmethod(knb_class, (t_method)knb_size, gensym("size"), A_FLOAT, 0);
-    class_addmethod(knb_class, (t_method)knb_sensitivity, gensym("sensitivity"), A_FLOAT, 0);
     class_addmethod(knb_class, (t_method)knb_move_mode, gensym("move_mode"), A_SYMBOL, 0);
     class_addmethod(knb_class, (t_method)knb_range, gensym("range"), A_GIMME, 0);
     class_addmethod(knb_class, (t_method)knb_color, gensym("color"), A_GIMME, 0);
