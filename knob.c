@@ -333,7 +333,7 @@ static void knb_properties(t_gobj *z, t_glist *owner){
     t_symbol *srl[3];
     iemgui_properties(&x->x_gui, srl);
     pdgui_stub_vnew(&x->x_gui.x_obj.ob_pd, "pdtk_iemgui_dialog", x,
-        "s s ffs ffs sfsfs i iss is si sss ii ii kkk ikiii",
+        "s s ffs ffs sfsfs i iss fs si sss ii ii kkk ikiii",
         "knb",
         "",
         (float)(x->x_gui.x_w / IEMGUI_ZOOM(x)), (float)MIN_SIZE, "Size:",
@@ -341,7 +341,7 @@ static void knb_properties(t_gobj *z, t_glist *owner){
         "Output Range", x->x_min, "Lower:", x->x_max, "Upper:",
         0,
         0, "linear", "logarithmic",
-        x->x_gui.x_isa.x_loadinit, x->x_move_mode->s_name,
+        x->x_init, x->x_move_mode->s_name,
         "", -1,
         srl[0]?srl[0]->s_name:"", srl[1]?srl[1]->s_name:"", srl[2]?srl[2]->s_name:"",
         x->x_gui.x_ldx, x->x_gui.x_ldy,
@@ -420,6 +420,7 @@ static void knb_dialog(t_knb *x, t_symbol *s, int argc, t_atom *argv){
     int h = (int)atom_getintarg(1, argc, argv);
     double min = (double)atom_getfloatarg(2, argc, argv);
     double max = (double)atom_getfloatarg(3, argc, argv);
+    double init = atom_getfloatarg(4, argc, argv);
     t_symbol *movemode = atom_getsymbolarg(16, argc, argv);
     int ticks = (int)atom_getintarg(17, argc, argv);
     t_symbol *acol_sym = atom_getsymbolarg(18, argc, argv);
@@ -432,12 +433,13 @@ static void knb_dialog(t_knb *x, t_symbol *s, int argc, t_atom *argv){
     iemgui_setdialogatoms(&x->x_gui, 23, undo);
     SETFLOAT(undo+2, x->x_min);
     SETFLOAT(undo+3, x->x_max);
-    SETSYMBOL(undo+17, x->x_move_mode);
-    SETFLOAT(undo+18, x->x_ticks);
-    SETCOLOR(undo+19, x->x_acol);
-    SETFLOAT(undo+20, x->x_arc_width);
-    SETFLOAT(undo+21, x->x_start_angle);
-    SETFLOAT(undo+22, x->x_end_angle);
+    SETFLOAT(undo+4, x->x_init);
+    SETSYMBOL(undo+16, x->x_move_mode);
+    SETFLOAT(undo+17, x->x_ticks);
+    SETCOLOR(undo+18, x->x_acol);
+    SETFLOAT(undo+19, x->x_arc_width);
+    SETFLOAT(undo+20, x->x_start_angle);
+    SETFLOAT(undo+21, x->x_end_angle);
     pd_undo_set_objectstate(x->x_gui.x_glist, (t_pd*)x, gensym("dialog"),
         23, undo, argc, argv);
     x->x_move_mode = movemode;
@@ -447,6 +449,7 @@ static void knb_dialog(t_knb *x, t_symbol *s, int argc, t_atom *argv){
     x->x_arc_width = arcwidth;
     x->x_start_angle = startangle;
     x->x_end_angle = endangle;
+    x->x_init = init;
     sr_flags = iemgui_dialog(&x->x_gui, srl, argc, argv);
     if('#' == acol_sym->s_name[0])
         x->x_acol = (int)strtol(acol_sym->s_name+1, 0, 16);
