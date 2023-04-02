@@ -38,6 +38,8 @@ typedef struct _knb{
     int             x_arc_width;
     int             x_start_angle;
     int             x_end_angle;
+    int             x_range;
+    int             x_offset;
     int             x_ticks;
     double          x_min;
     double          x_max;
@@ -321,7 +323,7 @@ static void knb_save(t_gobj *z, t_binbuf *b){
         x->x_init,
         x->x_circular,
         x->x_ticks,
-        gensym(acol_str), x->x_arc_width, x->x_start_angle, x->x_end_angle);
+        gensym(acol_str), x->x_arc_width, x->x_range, x->x_offset);
     binbuf_addv(b, ";");
 }
 
@@ -387,7 +389,7 @@ static void knb_properties(t_gobj *z, t_glist *owner){
         x->x_gui.x_bcol,
         x->x_gui.x_fcol,
         0, // was x->x_gui.x_lcol,
-        x->x_ticks, x->x_acol, x->x_arc_width, x->x_start_angle, x->x_end_angle);
+        x->x_ticks, x->x_acol, x->x_arc_width, x->x_range, x->x_offset);
 }
 
 // get value from motion/position
@@ -465,6 +467,38 @@ static void knb_init(t_knb *x, t_symbol *s, int ac, t_atom *av){
     x->x_init = x->x_fval;
 }
 
+// set start/end angles
+static void knb_angle(t_knb *x, t_floatarg f1, t_floatarg f2){
+    x->x_range = f1 > 360 ? 360 : f1 < 0 ? 0 : (int)f1;
+    x->x_offset = f2 > 360 ? 360 : f2 < 0 ? 0 : (int)f2;
+    int start = -(x->x_range/2) + x->x_offset;
+    int end = x->x_range/2 + x->x_offset;
+    float tmp;
+    while(start < -360)
+        start = -360;
+    while (start > 360)
+        start = 360;
+    while(end < -360)
+        end = -360;
+    while(end > 360)
+        end = 360;
+    if(end < start){
+        tmp = start;
+        start = end;
+        end = tmp;
+    }
+    if((end - start) > 360)
+        end = start + 360;
+    if(end == start)
+        end = start + 1;
+    x->x_start_angle = start;
+    x->x_end_angle = end;
+    knb_set(x, x->x_fval);
+    if(glist_isvisible(x->x_gui.x_glist))
+        knb_update_ticks(x, x->x_gui.x_glist);
+    knb_draw_update(x, x->x_gui.x_glist);
+}
+
 #define SETCOLOR(a, col) do {char color[MAXPDSTRING]; snprintf(color, MAXPDSTRING-1, "#%06x", 0xffffff & col); color[MAXPDSTRING-1] = 0; SETSYMBOL(a, gensym(color));} while(0)
 static void knb_apply(t_knb *x, t_symbol *s, int argc, t_atom *argv){
     s = NULL;
@@ -478,8 +512,8 @@ static void knb_apply(t_knb *x, t_symbol *s, int argc, t_atom *argv){
     int ticks = atom_getintarg(17, argc, argv);
     t_symbol *acol_sym = atom_getsymbolarg(18, argc, argv);
     int arcwidth = atom_getintarg(19, argc, argv);
-    int startangle = atom_getintarg(20, argc, argv);
-    int endangle = atom_getintarg(21, argc, argv);
+    int range = atom_getintarg(20, argc, argv);
+    int offset = atom_getintarg(21, argc, argv);
     int sr_flags;
 
     t_atom undo[23];
@@ -491,8 +525,8 @@ static void knb_apply(t_knb *x, t_symbol *s, int argc, t_atom *argv){
     SETFLOAT(undo+17, x->x_ticks);
     SETCOLOR(undo+18, x->x_acol);
     SETFLOAT(undo+19, x->x_arc_width);
-    SETFLOAT(undo+20, x->x_start_angle);
-    SETFLOAT(undo+21, x->x_end_angle);
+    SETFLOAT(undo+20, x->x_range);
+    SETFLOAT(undo+21, x->x_offset);
     pd_undo_set_objectstate(x->x_gui.x_glist, (t_pd*)x, gensym("dialog"),
         23, undo, argc, argv);
     x->x_circular = circular;
@@ -500,8 +534,7 @@ static void knb_apply(t_knb *x, t_symbol *s, int argc, t_atom *argv){
         ticks = 0;
     x->x_ticks = ticks;
     x->x_arc_width = arcwidth;
-    x->x_start_angle = startangle;
-    x->x_end_angle = endangle;
+    knb_angle(x, (float)range, (float)offset);
     if(x->x_init != init){
         knb_float(x, init);
         x->x_init = x->x_fval;
@@ -639,34 +672,6 @@ static void knb_ticks(t_knb *x, t_floatarg f){
         knb_update_ticks(x, x->x_gui.x_glist);
 }
 
-// set start/end angles
-static void knb_angle(t_knb *x, t_floatarg start, t_floatarg end){
-    float tmp;
-    if(start < -360)
-        start = -360;
-    else if(start > 360)
-        start = 360;
-    if(end < -360)
-        end = -360;
-    else if(end > 360)
-        end = 360;
-    if(end < start){
-        tmp = start;
-        start = end;
-        end = tmp;
-    }
-    if((end - start) > 360)
-        end = start + 360;
-    if(end == start)
-        end = start + 1;
-    x->x_start_angle = start;
-    x->x_end_angle = end;
-    knb_set(x, x->x_fval);
-    if(glist_isvisible(x->x_gui.x_glist))
-        knb_update_ticks(x, x->x_gui.x_glist);
-    knb_draw_update(x, x->x_gui.x_glist);
-}
-
 static void knb_zoom(t_knb *x, t_floatarg f){
     iemgui_zoom(&x->x_gui, f);
 }
@@ -679,7 +684,7 @@ static void *knb_new(t_symbol *s, int argc, t_atom *argv){
     float v = 0;
     float exp = 0;
     int circular = 0;
-    int ticks = 0, arcwidth = 0, start_angle = -135, end_angle = 135;
+    int ticks = 0, arcwidth = 0, range = 270, offset = 0;
     t_symbol *acol_sym = gensym("#00");
     double min = 0.0, max = 127.0;
     iem_inttosymargs(&x->x_gui.x_isa, 0);
@@ -722,8 +727,8 @@ static void *knb_new(t_symbol *s, int argc, t_atom *argv){
         ticks = atom_getint(argv++);
         acol_sym = atom_getsymbol(argv++);
         arcwidth = atom_getint(argv++);
-        start_angle = atom_getint(argv++);
-        end_angle = atom_getint(argv++);
+        range = atom_getint(argv++);
+        offset = atom_getint(argv++);
     }
     x->x_gui.x_fsf.x_snd_able = (0 != x->x_gui.x_snd);
     x->x_gui.x_fsf.x_rcv_able = (0 != x->x_gui.x_rcv);
@@ -740,8 +745,7 @@ static void *knb_new(t_symbol *s, int argc, t_atom *argv){
     x->x_gui.x_ldx = ldx;
     x->x_gui.x_ldy = ldy;
     x->x_arc_width = arcwidth;
-    x->x_start_angle = start_angle;
-    x->x_end_angle = end_angle;
+    knb_angle(x, range, offset);
     if('#' == acol_sym->s_name[0])
         x->x_acol = (int)strtol(acol_sym->s_name+1, 0, 16);
     iemgui_verify_snd_ne_rcv(&x->x_gui);
