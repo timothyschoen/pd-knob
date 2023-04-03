@@ -100,6 +100,10 @@ static void knob_update_knob(t_knob *x, t_glist *glist){
         pos = 0.0;
     else if(pos > 1.0)
         pos = 1.0;
+    if(x->x_discrete){
+        t_float ticks = (x->x_ticks < 2 ? 2 : (float)x->x_ticks) -1 ;
+        pos = rint(pos * ticks) / ticks;
+    }
     x0 = text_xpix(&x->x_gui.x_obj, glist);
     y0 = text_ypix(&x->x_gui.x_obj, glist);
     x1 = x0 + x->x_gui.x_w;
@@ -299,7 +303,7 @@ static void knob_save(t_gobj *z, t_binbuf *b){
         (t_int)x->x_gui.x_obj.te_ypix,
         atom_getsymbol(binbuf_getvec(x->x_gui.x_obj.te_binbuf)));
     // args
-    binbuf_addv(b, "ifffssssfiiiii", // 14 args
+    binbuf_addv(b, "ifffssssfiiiiii", // 15 args
         x->x_gui.x_w / IEMGUI_ZOOM(x), // 01: i SIZE
         (float)x->x_min, // 02: f min
         (float)x->x_max, // 03: f max
@@ -311,15 +315,15 @@ static void knob_save(t_gobj *z, t_binbuf *b){
         x->x_init, // 09: f init
         x->x_circular, // 10: i circular
         x->x_ticks, // 11: i ticks
-        x->x_arc, // 12: i arc
-        x->x_range, // 13: i range
-        x->x_offset); // 14: i offset
+        x->x_discrete, // 12: i discrete
+        x->x_arc, // 13: i arc
+        x->x_range, // 14: i range
+        x->x_offset); // 15: i offset
     binbuf_addv(b, ";");
 }
 
 void knob_check_size(t_knob *x, int s){
     x->x_gui.x_w = s < MIN_SIZE * IEMGUI_ZOOM(x) ? MIN_SIZE * IEMGUI_ZOOM(x) : s;
-    x->x_gui.x_h = DEFAULT_SENSITIVITY * IEMGUI_ZOOM(x);
 }
 
 static void knob_range(t_knob *x, t_floatarg f1, t_floatarg f2){
@@ -394,11 +398,8 @@ static t_float knob_getfval(t_knob *x){
     else if(pos > 1.0)
         pos = 1.0;
     if(x->x_discrete){
-        post("discrete");
-        t_float ticks = x->x_ticks < 1 ? 1 : (float)x->x_ticks;
-        post("ticks = %d", (int)ticks);
+        t_float ticks = (x->x_ticks < 2 ? 2 : (float)x->x_ticks) - 1;
         pos = rint(pos * ticks) / ticks;
-        post("pos = %f", pos);
     }
     if(x->x_exp == 1){ // log
         if((x->x_min <= 0 && x->x_max >= 0) || (x->x_min >= 0 && x->x_max <= 0)){
@@ -552,7 +553,7 @@ static void knob_motion(t_knob *x, t_floatarg dx, t_floatarg dy){
     float delta = -dy;
     if(fabs(dx) > fabs(dy))
         delta = dx;
-    delta /= ((float)x->x_gui.x_h - IEMGUI_ZOOM(x));
+    delta /= (float)(DEFAULT_SENSITIVITY * IEMGUI_ZOOM(x));
     if(x->x_gui.x_fsf.x_finemoved)
         delta *= 0.01;
     double pos = x->x_pos + delta;
@@ -640,6 +641,10 @@ static void knob_ticks(t_knob *x, t_floatarg f){
     x->x_ticks = (int)f;
     if(f <= 0)
         x->x_ticks = 0;
+    if(f == 1)
+        x->x_ticks = 2;
+    if(f > 100)
+        x->x_ticks = 100;
     if(glist_isvisible(x->x_gui.x_glist))
         knob_update_ticks(x, x->x_gui.x_glist);
 }
@@ -652,7 +657,8 @@ static void *knob_new(t_symbol *s, int argc, t_atom *argv){
     s = NULL;
     t_knob *x = (t_knob *)iemgui_new(knob_class);
     float initvalue = 0, exp = 0;
-    int size = 30, circular = 0, ticks = 0, arc = 1, range = 360, offset = 0;
+    int size = 30, circular = 0, ticks = 0, discrete = 0;
+    int arc = 1, range = 360, offset = 0;
     double min = 0.0, max = 127.0;
     x->x_gui.x_bcol = 0xDFDFDF, x->x_gui.x_fcol = 0x000000;
     IEMGUI_SETDRAWFUNCTIONS(x, knob);
@@ -666,16 +672,18 @@ static void *knob_new(t_symbol *s, int argc, t_atom *argv){
         initvalue = atom_getfloatarg(8, argc, argv);
         circular = atom_getintarg(9, argc, argv);
         ticks = atom_getintarg(10, argc, argv);
-        arc = atom_getintarg(11, argc, argv);
-        range = atom_getintarg(12, argc, argv);
-        offset = atom_getintarg(13, argc, argv);
+        discrete = atom_getintarg(11, argc, argv);
+        arc = atom_getintarg(12, argc, argv);
+        range = atom_getintarg(13, argc, argv);
+        offset = atom_getintarg(14, argc, argv);
     }
     x->x_exp = exp;
     x->x_circular = circular;
     x->x_gui.x_glist = (t_glist *)canvas_getcurrent();
     x->x_gui.x_fsf.x_snd_able = (x->x_gui.x_snd != 0);
     x->x_gui.x_fsf.x_rcv_able = (x->x_gui.x_rcv != 0);
-    x->x_ticks = ticks < 0 ? 0 : ticks > 100 ? 100 : ticks; // clip unneeded
+    knob_ticks(x, ticks);
+    x->x_discrete = discrete;
     if(x->x_gui.x_fsf.x_rcv_able)
         pd_bind(&x->x_gui.x_obj.ob_pd, x->x_gui.x_rcv);
     x->x_arc = arc;
