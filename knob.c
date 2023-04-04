@@ -414,7 +414,7 @@ static void knob_properties(t_gobj *z, t_glist *owner){
     owner = NULL;
     t_knob *x = (t_knob *)z;
     pdgui_stub_vnew(&x->x_obj.ob_pd, "pdtk_iemgui_dialog", x,
-        "s s ffs ffs sfsfs i iss fi si sss ii ii ssk ikiii",
+        "s s ffs ffs sfsfs i iss fi si sss ii ii ssk iiii",
         "knob", // needed?
         "",
         (float)(x->x_size / x->x_zoom),
@@ -446,7 +446,6 @@ static void knob_properties(t_gobj *z, t_glist *owner){
         x->x_fg->s_name,
         x->x_discrete, // was x->x_gui.x_lcol,
         x->x_ticks,
-        "0x00", // x_acol 0x00
         x->x_arc,
         x->x_range,
         x->x_offset);
@@ -527,7 +526,7 @@ static void knob_apply(t_knob *x, t_symbol *s, int argc, t_atom *argv){
     int arc = atom_getintarg(19, argc, argv) != 0;
     int range = atom_getintarg(20, argc, argv);
     int offset = atom_getintarg(21, argc, argv);
-
+    
     t_atom undo[23];
     SETFLOAT(undo+2, x->x_min);
     SETFLOAT(undo+3, x->x_max);
@@ -742,5 +741,5 @@ void knob_setup(void){
     class_setwidget(knob_class, &knob_widgetbehavior);
     class_setsavefn(knob_class, knob_save);
     class_setpropertiesfn(knob_class, knob_properties);
-    #include "knob_dialog.c"
+    #include "knob_dialog.h"
 }
