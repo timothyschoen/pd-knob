@@ -30,30 +30,30 @@
 
 
 typedef struct _knob{
-    t_object        x_obj;
-    t_glist        *x_glist;
-    int             x_size;
-    float           x_pos;  // 0-1 normalized position
-    float           x_exp;
-    float           x_init;
-    int             x_start_angle;
-    int             x_end_angle;
-    int             x_range;
-    int             x_offset;
-    int             x_ticks;
-    double          x_min;
-    double          x_max;
-    int             x_sel;
-    int             x_shift;
-    t_float         x_fval;
-    t_symbol       *x_fg;
-    t_symbol       *x_bg;
-    t_symbol       *x_snd;
-    t_symbol       *x_rcv;
-    int             x_circular;
-    int             x_arc;
-    int             x_zoom;
-    int             x_discrete;
+    t_object       x_obj;
+    t_glist       *x_glist;
+    int            x_size;
+    float          x_pos;  // 0-1 normalized position
+    float          x_exp;
+    float          x_init;
+    int            x_start_angle;
+    int            x_end_angle;
+    int            x_range;
+    int            x_offset;
+    int            x_ticks;
+    double         x_min;
+    double         x_max;
+    int            x_sel;
+    int            x_shift;
+    t_float        x_fval;
+    t_symbol      *x_fg;
+    t_symbol      *x_bg;
+    t_symbol      *x_snd;
+    t_symbol      *x_rcv;
+    int            x_circular;
+    int            x_arc;
+    int            x_zoom;
+    int            x_discrete;
 }t_knob;
 
 t_widgetbehavior knob_widgetbehavior;
@@ -192,14 +192,7 @@ static void knob_update_knob(t_knob *x, t_glist *glist){
     if(x->x_arc){
         int arcwidth = x->x_arc * rint(x->x_size / 10);
         int aD, cD;
-//        float zero_angle, zero_val;
-//        if((x->x_min * x->x_max) < 0){
-//            if(x->x_min < 0)
-//                zero_val = (x->x_init-x->x_min) / (fabs(x->x_min) + fabs(x->x_max));
-//            else
-//                zero_val = -x->x_max / (fabs(x->x_min) + fabs(x->x_max));
-            angle0 += (knob_getpos(x, x->x_init) * x->x_range / 180.0 * M_PI);
-//        }
+        angle0 += (knob_getpos(x, x->x_init) * x->x_range / 180.0 * M_PI);
         aD = x->x_zoom;
         sprintf(tag, "%pARC", x);
         pdgui_vmess(0, "crs iiii", canvas, "coords", tag,
@@ -668,10 +661,12 @@ static void *knob_new(t_symbol *s, int argc, t_atom *argv){
     s = NULL;
     t_knob *x = (t_knob *)pd_new(knob_class);
     float initvalue = 0, exp = 0;
+    x->x_snd = gensym("empty");
+    x->x_rcv = gensym("empty");
     int size = 30, circular = 0, ticks = 0, discrete = 0;
     int arc = 1, range = 360, offset = 0;
     double min = 0.0, max = 127.0;
-    x->x_bg = gensym("0xDFDFDF"), x->x_fg = gensym("0x000000");
+    x->x_bg = gensym("#dfdfdf"), x->x_fg = gensym("black");
     x->x_glist = (t_glist *)canvas_getcurrent();
     x->x_zoom = x->x_glist->gl_zoom;
     if(argc){
