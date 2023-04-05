@@ -415,9 +415,8 @@ static void knob_discrete(t_knob *x, t_floatarg f){
 static void knob_properties(t_gobj *z, t_glist *owner){
     owner = NULL;
     t_knob *x = (t_knob *)z;
-
     char buffer[512];
-    sprintf(buffer, "knob_dialog %%s %s %g %g %g %g %g %d {%s} {%s} %d %d {%s} {%s} %d %d %d %d %d \n",
+    sprintf(buffer, "knob_dialog %%s %s %g %g %g %g %g %d {%s} {%s} %d %g {%s} {%s} %d %d %d %d %d \n",
         "", // TODO: mytoplevel
         (float)(x->x_size / x->x_zoom),
         (float)MIN_SIZE,
