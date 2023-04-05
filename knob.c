@@ -381,12 +381,12 @@ static void knob_save(t_gobj *z, t_binbuf *b){
         (t_int)x->x_obj.te_xpix,
         (t_int)x->x_obj.te_ypix,
         atom_getsymbol(binbuf_getvec(x->x_obj.te_binbuf)));
-    binbuf_addv(b, "ifffssssfiiiiii", // 15 args
+    binbuf_addv(b, "ifffissssfiiiiii", // 15 args
         x->x_size / x->x_zoom, // 01: i SIZE
         (float)x->x_min, // 02: f min
         (float)x->x_max, // 03: f max
         x->x_exp, // 04: f exp
-        x->x_expmode, // 05: f expmode
+        x->x_expmode, // 05: i expmode
         x->x_rcv, // 06: s rcv
         x->x_snd, // 07: s snd
         x->x_bg, // 08: s bgcolor
@@ -429,7 +429,6 @@ static void knob_discrete(t_knob *x, t_floatarg f){
 static void knob_properties(t_gobj *z, t_glist *owner){
     owner = NULL;
     t_knob *x = (t_knob *)z;
-
     char buffer[512];
     sprintf(buffer, "knob_dialog %%s %g %g %g %g %g %d {%s} {%s} %d %g {%s} {%s} %d %d %d %d %d \n",
         (float)(x->x_size / x->x_zoom),
