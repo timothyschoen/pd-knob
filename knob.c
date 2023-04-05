@@ -343,6 +343,14 @@ static void knob_draw_new(t_knob *x, t_glist *glist){
         x->x_sel ? "blue" : "black");
 }*/
 
+static void knob_send(t_knob *x, t_symbol *s){
+    x->x_snd = s;
+}
+
+static void knob_receive(t_knob *x, t_symbol *s){
+    x->x_rcv = s;
+}
+
 void knob_vis(t_gobj *z, t_glist *glist, int vis){
     t_knob* x = (t_knob*)z;
     if(vis)
@@ -405,7 +413,13 @@ static void knob_range(t_knob *x, t_floatarg f1, t_floatarg f2){
 }
 
 static void knob_exp(t_knob *x, t_floatarg f){
-    x->x_exp = f;
+    if(f == 0 || f == 1) {
+        x->x_expmode = f;
+    }
+    else {
+        x->x_expmode = 2;
+        x->x_exp = f;
+    }
 }
 
 static void knob_discrete(t_knob *x, t_floatarg f){
@@ -416,8 +430,7 @@ static void knob_properties(t_gobj *z, t_glist *owner){
     owner = NULL;
     t_knob *x = (t_knob *)z;
     char buffer[512];
-    sprintf(buffer, "knob_dialog %%s %s %g %g %g %g %g %d {%s} {%s} %d %g {%s} {%s} %d %d %d %d %d \n",
-        "", // TODO: mytoplevel
+    sprintf(buffer, "knob_dialog %%s %g %g %g %g %g %d {%s} {%s} %d %g {%s} {%s} %d %d %d %d %d \n",
         (float)(x->x_size / x->x_zoom),
         (float)MIN_SIZE,
         x->x_min,
@@ -427,7 +440,7 @@ static void knob_properties(t_gobj *z, t_glist *owner){
         x->x_snd->s_name,
         x->x_rcv->s_name,
         x->x_expmode,
-        x->x_exp, // was font size,
+        x->x_exp,
         x->x_bg->s_name,
         x->x_fg->s_name,
         x->x_discrete,
@@ -507,12 +520,12 @@ static void knob_apply(t_knob *x, t_symbol *s, int argc, t_atom *argv){
     float min = atom_getfloatarg(1, argc, argv);
     float max = atom_getfloatarg(2, argc, argv);
     double init = atom_getfloatarg(3, argc, argv);
-    // 4: send
-    // 5: receive
+    t_symbol* snd = atom_getsymbolarg(4, argc, argv);
+    t_symbol* rcv = atom_getsymbolarg(5, argc, argv);
     x->x_expmode = atom_getintarg(6, argc, argv);
-    x->x_exp = atom_getintarg(7, argc, argv);
-    // 8: bg
-    // 9: fg
+    x->x_exp = atom_getfloatarg(7, argc, argv);
+    x->x_bg = atom_getsymbolarg(8, argc, argv);
+    x->x_fg = atom_getsymbolarg(9, argc, argv);
     int circular = atom_getintarg(10, argc, argv);
     int ticks = atom_getintarg(11, argc, argv);
     int discrete = atom_getintarg(12, argc, argv);
@@ -546,6 +559,10 @@ static void knob_apply(t_knob *x, t_symbol *s, int argc, t_atom *argv){
     knob_discrete(x, discrete);
     knob_range(x, min, max);
     knob_set(x, x->x_fval);
+    knob_send(x, snd);
+    knob_receive(x, rcv);
+    knob_draw_config(x, x->x_glist);
+
 //    (*x->x_gui.x_draw)(x, x->x_glist, IEM_GUI_DRAW_MODE_CONFIG);
 //    (*x->x_gui.x_draw)(x, x->x_glist, IEM_GUI_DRAW_MODE_IO + sr_flags);
 //    (*x->x_gui.x_draw)(x, x->x_glist, IEM_GUI_DRAW_MODE_MOVE);
@@ -619,13 +636,6 @@ static void knob_circular(t_knob *x, t_floatarg f){
     x->x_circular = (f != 0);
 }
 
-static void knob_send(t_knob *x, t_symbol *s){
-    x->x_snd = s;
-}
-
-static void knob_receive(t_knob *x, t_symbol *s){
-    x->x_rcv = s;
-}
 
 static void knob_arc(t_knob *x, t_floatarg f){
     x->x_arc = f != 0;
