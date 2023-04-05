@@ -413,7 +413,13 @@ static void knob_range(t_knob *x, t_floatarg f1, t_floatarg f2){
 }
 
 static void knob_exp(t_knob *x, t_floatarg f){
-    x->x_exp = f;
+    if(f == 0 || f == 1) {
+        x->x_expmode = f;
+    }
+    else {
+        x->x_expmode = 2;
+        x->x_exp = f;
+    }
 }
 
 static void knob_discrete(t_knob *x, t_floatarg f){
@@ -425,7 +431,7 @@ static void knob_properties(t_gobj *z, t_glist *owner){
     t_knob *x = (t_knob *)z;
 
     char buffer[512];
-    sprintf(buffer, "knob_dialog %%s %g %g %g %g %g %d {%s} {%s} %d %d {%s} {%s} %d %d %d %d %d \n",
+    sprintf(buffer, "knob_dialog %%s %g %g %g %g %g %d {%s} {%s} %d %g {%s} {%s} %d %d %d %d %d \n",
         (float)(x->x_size / x->x_zoom),
         (float)MIN_SIZE,
         x->x_min,
@@ -518,7 +524,7 @@ static void knob_apply(t_knob *x, t_symbol *s, int argc, t_atom *argv){
     t_symbol* snd = atom_getsymbolarg(4, argc, argv);
     t_symbol* rcv = atom_getsymbolarg(5, argc, argv);
     x->x_expmode = atom_getintarg(6, argc, argv);
-    x->x_exp = atom_getintarg(7, argc, argv);
+    x->x_exp = atom_getfloatarg(7, argc, argv);
     x->x_bg = atom_getsymbolarg(8, argc, argv);
     x->x_fg = atom_getsymbolarg(9, argc, argv);
     int circular = atom_getintarg(10, argc, argv);
