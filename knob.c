@@ -33,9 +33,10 @@ typedef struct _knob{
     t_object       x_obj;
     t_glist       *x_glist;
     int            x_size;
-    float          x_pos;  // 0-1 normalized position
-    float          x_exp;
-    float          x_init;
+    t_float          x_pos;  // 0-1 normalized position
+    t_float          x_exp;
+    int             x_expmode;
+    t_float          x_init;
     int            x_start_angle;
     int            x_end_angle;
     int            x_range;
@@ -85,7 +86,7 @@ static t_float knob_getfval(t_knob *x){
         t_float ticks = (x->x_ticks < 2 ? 2 : (float)x->x_ticks) - 1;
         pos = rint(pos * ticks) / ticks;
     }
-    if(x->x_exp == 1){ // log
+    if(x->x_expmode == 1){ // log
         if((x->x_min <= 0 && x->x_max >= 0) || (x->x_min >= 0 && x->x_max <= 0)){
             pd_error(x, "[knob]: range cannot contain '0' in log mode");
             fval = x->x_min;
@@ -94,7 +95,7 @@ static t_float knob_getfval(t_knob *x){
             fval = exp(pos * log(x->x_max / x->x_min)) * x->x_min;
     }
     else{
-        if(x->x_exp != 0){
+        if(x->x_expmode == 2){
             if(x->x_exp > 0)
                 pos = pow(pos, x->x_exp);
             else
@@ -110,7 +111,7 @@ static t_float knob_getfval(t_knob *x){
 // get position from value
 static t_float knob_getpos(t_knob *x, t_floatarg fval){
     double pos;
-    if(x->x_exp == 1){ // log
+    if(x->x_expmode == 1){ // log
         if((x->x_min <= 0 && x->x_max >= 0) || (x->x_min >= 0 && x->x_max <= 0)){
             pd_error(x, "[knob]: range cannot contain '0' in log mode");
             pos = 0;
@@ -120,7 +121,7 @@ static t_float knob_getpos(t_knob *x, t_floatarg fval){
     }
     else{
         pos = (fval - x->x_min) / (x->x_max - x->x_min);
-        if(fabs(x->x_exp) != 0){
+        if(x->x_expmode == 2){
             if(x->x_exp > 0)
                 pos = pow(pos, 1.0/x->x_exp);
             else
@@ -377,17 +378,18 @@ static void knob_save(t_gobj *z, t_binbuf *b){
         (float)x->x_min, // 02: f min
         (float)x->x_max, // 03: f max
         x->x_exp, // 04: f exp
-        x->x_rcv, // 05: s rcv
-        x->x_snd, // 06: s snd
-        x->x_bg, // 07: s bgcolor
-        x->x_fg, // 08: s fgcolor
-        x->x_init, // 09: f init
-        x->x_circular, // 10: i circular
-        x->x_ticks, // 11: i ticks
-        x->x_discrete, // 12: i discrete
-        x->x_arc, // 13: i arc
-        x->x_range, // 14: i range
-        x->x_offset); // 15: i offset
+        x->x_expmode, // 05: f expmode
+        x->x_rcv, // 06: s rcv
+        x->x_snd, // 07: s snd
+        x->x_bg, // 08: s bgcolor
+        x->x_fg, // 09: s fgcolor
+        x->x_init, // 10: f init
+        x->x_circular, // 11: i circular
+        x->x_ticks, // 12: i ticks
+        x->x_discrete, // 13: i discrete
+        x->x_arc, // 14: i arc
+        x->x_range, // 15: i range
+        x->x_offset); // 16: i offset
     binbuf_addv(b, ";");
 }
 
@@ -413,42 +415,28 @@ static void knob_discrete(t_knob *x, t_floatarg f){
 static void knob_properties(t_gobj *z, t_glist *owner){
     owner = NULL;
     t_knob *x = (t_knob *)z;
-    pdgui_stub_vnew(&x->x_obj.ob_pd, "pdtk_iemgui_dialog", x,
-        "s s ffs ffs sfsfs i iss fi si sss ii ii ssk iiii",
-        "knob", // needed?
-        "",
+
+    char buffer[512];
+    sprintf(buffer, "knob_dialog %%s %s %g %g %g %g %g %d {%s} {%s} %d %d {%s} {%s} %d %d %d %d %d \n",
+        "", // TODO: mytoplevel
         (float)(x->x_size / x->x_zoom),
         (float)MIN_SIZE,
-        "Size:",
-        x->x_exp, // exp
-        0.0,
-        "Exponential:", // but not needed
-        "Range",
         x->x_min,
-        "_", // was 'min' but wasn't used - a fucking symbol is neeeded anyway
         x->x_max,
-        "_", // was 'max' but wasn't used
-        0,
-        0,
-        "", "", // was lin/log
         x->x_init,
         x->x_circular,
-        "",
-        0, //
         x->x_snd->s_name,
         x->x_rcv->s_name,
-        "", // label
-        0, // x->x_gui.x_ldx,
-        0, // x->x_gui.x_ldy,
-        0, // was font style,
-        0, // was font size,
+        x->x_expmode,
+        x->x_exp, // was font size,
         x->x_bg->s_name,
         x->x_fg->s_name,
-        x->x_discrete, // was x->x_gui.x_lcol,
+        x->x_discrete,
         x->x_ticks,
         x->x_arc,
         x->x_range,
         x->x_offset);
+    gfxstub_new(&x->x_obj.ob_pd, x, buffer);
 }
     
 static void knob_set(t_knob *x, t_floatarg f){
@@ -517,15 +505,21 @@ static void knob_size(t_knob *x, t_floatarg f){
 static void knob_apply(t_knob *x, t_symbol *s, int argc, t_atom *argv){
     s = NULL;
     int size = (int)atom_getintarg(0, argc, argv);
-    x->x_exp = atom_getfloatarg(1, argc, argv);
-    float min = atom_getfloatarg(2, argc, argv);
-    float max = atom_getfloatarg(3, argc, argv);
-    double init = atom_getfloatarg(4, argc, argv);
-    int circular = atom_getintarg(16, argc, argv);
-    int ticks = atom_getintarg(17, argc, argv);
-    int arc = atom_getintarg(19, argc, argv) != 0;
-    int range = atom_getintarg(20, argc, argv);
-    int offset = atom_getintarg(21, argc, argv);
+    float min = atom_getfloatarg(1, argc, argv);
+    float max = atom_getfloatarg(2, argc, argv);
+    double init = atom_getfloatarg(3, argc, argv);
+    // 4: send
+    // 5: receive
+    x->x_expmode = atom_getintarg(6, argc, argv);
+    x->x_exp = atom_getintarg(7, argc, argv);
+    // 8: bg
+    // 9: fg
+    int circular = atom_getintarg(10, argc, argv);
+    int ticks = atom_getintarg(11, argc, argv);
+    int discrete = atom_getintarg(12, argc, argv);
+    int arc = atom_getintarg(13, argc, argv) != 0;
+    int range = atom_getintarg(14, argc, argv);
+    int offset = atom_getintarg(15, argc, argv);
     
     t_atom undo[23];
     SETFLOAT(undo+2, x->x_min);
@@ -547,8 +541,10 @@ static void knob_apply(t_knob *x, t_symbol *s, int argc, t_atom *argv){
         ticks = 0;
     x->x_ticks = ticks;
     x->x_arc = arc;
+    x->x_discrete = discrete;
     knob_angle(x, (float)range, (float)offset);
     knob_size(x, size);
+    knob_discrete(x, discrete);
     knob_range(x, min, max);
     knob_set(x, x->x_fval);
 //    (*x->x_gui.x_draw)(x, x->x_glist, IEM_GUI_DRAW_MODE_CONFIG);
@@ -662,7 +658,7 @@ static void *knob_new(t_symbol *s, int argc, t_atom *argv){
     float initvalue = 0, exp = 0;
     x->x_snd = gensym("empty");
     x->x_rcv = gensym("empty");
-    int size = 30, circular = 0, ticks = 0, discrete = 0;
+    int size = 30, circular = 0, ticks = 0, discrete = 0, expmode = 0;
     int arc = 1, range = 360, offset = 0;
     double min = 0.0, max = 127.0;
     x->x_bg = gensym("#dfdfdf"), x->x_fg = gensym("black");
@@ -673,24 +669,27 @@ static void *knob_new(t_symbol *s, int argc, t_atom *argv){
         min = (double)atom_getfloatarg(1, argc, argv);
         max = (double)atom_getfloatarg(2, argc, argv);
         exp = atom_getfloatarg(3, argc, argv);
-        x->x_snd = atom_getsymbolarg(4, argc, argv);
-        x->x_rcv = atom_getsymbolarg(5, argc, argv);
-        x->x_bg = atom_getsymbolarg(6, argc, argv);
-        x->x_fg = atom_getsymbolarg(7, argc, argv);
-        initvalue = atom_getfloatarg(8, argc, argv);
-        circular = atom_getintarg(9, argc, argv);
-        ticks = atom_getintarg(10, argc, argv);
-        discrete = atom_getintarg(11, argc, argv);
-        arc = atom_getintarg(12, argc, argv);
-        range = atom_getintarg(13, argc, argv);
-        offset = atom_getintarg(14, argc, argv);
+        expmode = atom_getfloatarg(4, argc, argv);
+        x->x_snd = atom_getsymbolarg(5, argc, argv);
+        x->x_rcv = atom_getsymbolarg(6, argc, argv);
+        x->x_bg = atom_getsymbolarg(7, argc, argv);
+        x->x_fg = atom_getsymbolarg(8, argc, argv);
+        initvalue = atom_getfloatarg(9, argc, argv);
+        circular = atom_getintarg(10, argc, argv);
+        ticks = atom_getintarg(11, argc, argv);
+        discrete = atom_getintarg(12, argc, argv);
+        arc = atom_getintarg(13, argc, argv);
+        range = atom_getintarg(14, argc, argv);
+        offset = atom_getintarg(15, argc, argv);
     }
 //    post("new: bg (%s)", x->x_bg->s_name);
+    x->x_expmode = expmode;
     x->x_exp = exp;
     x->x_circular = circular;
     x->x_glist = (t_glist *)canvas_getcurrent();
     knob_ticks(x, ticks);
     x->x_discrete = discrete;
+
 //    if(x->x_gui.x_fsf.x_rcv_able)
 //        pd_bind(&x->x_obj.ob_pd, x->x_gui.x_rcv);
     x->x_arc = arc;
