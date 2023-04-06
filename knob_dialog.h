@@ -1,7 +1,4 @@
-// For information on usage and redistribution, and for a DISCLAIMER OF ALL
-// WARRANTIES, see the file, "LICENSE.txt," in this distribution.
-// Copyright (c) 1997-2009 Miller Puckette.
-// Cleaned up for ELSE by Alexandre Porres and Timothy Schoen
+// Based on dialogs from iemguis in Pd Vanilla (Tim Schoen & Porres)
 
 sys_gui("\n"
 "\n"
@@ -254,7 +251,7 @@ sys_gui("\n"
 "\n"
 "    frame $mytoplevel.rng.logmode\n"
 "    radiobutton $mytoplevel.rng.logmode.radio1 -value 0 \\\n"
-"        -text [_ \"normal\" ] \\\n"
+"        -text [_ \"linear\" ] \\\n"
 "        -variable ::dialog_knob::var_expmode($vid) \\\n"
 "        -command \"$mytoplevel.rng.logmode.expmode_entry configure -state disabled\"\n"
 "\n"

@@ -1,12 +1,7 @@
 // based on a proposal for vanilla
 
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
-#include <ctype.h>
 #include "m_pd.h"
 #include "g_canvas.h"
-
 #include <math.h>
 
 #ifdef _MSC_VER
@@ -24,37 +19,35 @@
 #endif
 
 #define DEFAULT_SENSITIVITY 128
-#define DEFAULT_SIZE 35
-#define MIN_SIZE 15
-#define POS_MARGIN 0.01
-
+#define DEFAULT_SIZE        35
+#define MIN_SIZE            15
 
 typedef struct _knob{
-    t_object       x_obj;
-    t_glist       *x_glist;
-    int            x_size;
-    t_float          x_pos;  // 0-1 normalized position
-    t_float          x_exp;
-    int             x_expmode;
-    t_float          x_init;
-    int            x_start_angle;
-    int            x_end_angle;
-    int            x_range;
-    int            x_offset;
-    int            x_ticks;
-    double         x_min;
-    double         x_max;
-    int            x_sel;
-    int            x_shift;
-    t_float        x_fval;
-    t_symbol      *x_fg;
-    t_symbol      *x_bg;
-    t_symbol      *x_snd;
-    t_symbol      *x_rcv;
-    int            x_circular;
-    int            x_arc;
-    int            x_zoom;
-    int            x_discrete;
+    t_object    x_obj;
+    t_glist    *x_glist;
+    int         x_size;
+    t_float     x_pos; // 0-1 normalized position
+    t_float     x_exp;
+    int         x_expmode;
+    t_float     x_init;
+    int         x_start_angle;
+    int         x_end_angle;
+    int         x_range;
+    int         x_offset;
+    int         x_ticks;
+    double      x_min;
+    double      x_max;
+    int         x_sel;
+    int         x_shift;
+    t_float     x_fval;
+    t_symbol   *x_fg;
+    t_symbol   *x_bg;
+    t_symbol   *x_snd;
+    t_symbol   *x_rcv;
+    int         x_circular;
+    int         x_arc;
+    int         x_zoom;
+    int         x_discrete;
 }t_knob;
 
 t_widgetbehavior knob_widgetbehavior;
@@ -63,21 +56,26 @@ static t_class *knob_class;
 static void knob_displace(t_gobj *z, t_glist *glist, int dx, int dy){
     t_knob *x = (t_knob *)z;
     x->x_obj.te_xpix += dx, x->x_obj.te_ypix += dy;
-    sys_vgui(".x%lx.c move %pOBJ %d %d\n", glist_getcanvas(glist),
-        x, dx*x->x_zoom, dy*x->x_zoom);
+    dx *= x->x_zoom, dy *= x->x_zoom;
+    char tag[128];
+    sprintf(tag, "%pOBJ", x);
+    pdgui_vmess(0, "crs ii", glist_getcanvas(glist), "move", tag, dx, dy);
     canvas_fixlinesfor(glist, (t_text*)x);
 }
 
 static void knob_select(t_gobj *z, t_glist *glist, int sel){
-    z = NULL;
-    glist = NULL;
-    sel = 0;
+    t_knob* x = (t_knob*)z;
+    x->x_sel = sel;
+    t_canvas *cv = glist_getcanvas(glist);
+    char tag[128];
+    sprintf(tag, "%pSELECT", x);
+    pdgui_vmess(0, "crs rs", cv, "itemconfigure", tag, "-outline", sel?"blue":"black");
 }
 
 // get value from motion/position
 static t_float knob_getfval(t_knob *x){
     t_float fval;
-    t_float pos = (x->x_pos - POS_MARGIN) / (1 - 2 * POS_MARGIN);
+    t_float pos = x->x_pos;
     if(pos < 0.0)
         pos = 0.0;
     else if(pos > 1.0)
@@ -88,7 +86,7 @@ static t_float knob_getfval(t_knob *x){
     }
     if(x->x_expmode == 1){ // log
         if((x->x_min <= 0 && x->x_max >= 0) || (x->x_min >= 0 && x->x_max <= 0)){
-            pd_error(x, "[knob]: range cannot contain '0' in log mode");
+            pd_error(x, "[knob]: range can't contain '0' in log mode");
             fval = x->x_min;
         }
         else
@@ -128,220 +126,201 @@ static t_float knob_getpos(t_knob *x, t_floatarg fval){
                 pos = 1-pow(1-pos, 1.0/(-x->x_exp));
         }
     }
-    return(pos * (1 - 2 * POS_MARGIN) + POS_MARGIN);
+    return(pos);
 }
 
 static void knob_draw_io(t_knob *x,t_glist *glist, int old_snd_rcv_flags){
     old_snd_rcv_flags = 0;
     int xpos = text_xpix(&x->x_obj, glist);
     int ypos = text_ypix(&x->x_obj, glist);
-    int iow = IOWIDTH * x->x_zoom, ioh = 3 * x->x_zoom; // why not ioheight?
+    int iow = IOWIDTH * x->x_zoom, ioh = OHEIGHT * x->x_zoom;
     t_canvas *canvas = glist_getcanvas(glist);
     char tag_object[128], tag[128], tag_select[128];
-    char *tags[] = {tag_object, tag, tag_select};
+    char *tags[] = {tag, tag_object, tag_select};
     sprintf(tag_object, "%pOBJ", x);
     sprintf(tag_select, "%pSELECT", x);
     sprintf(tag, "%pOUTLINE", x);
-    pdgui_vmess(0, "crs", canvas, "delete", tag);
-//    if(!x->x_snd && !x->x_rcv){
+    pdgui_vmess(0, "crs", canvas, "delete", tag); // delete outline
+    if(x->x_snd == gensym("empty") || x->x_rcv == gensym("empty")){
         pdgui_vmess(0, "crr iiii ri rS", canvas, "create", "rectangle",
             xpos, ypos,
             xpos + x->x_size, ypos + x->x_size,
             "-width", x->x_zoom,
-            "-tags", 3, tags);
-//    }
-    sprintf(tag, "%pOUT%d", x, 0);
+            "-tags", 3, tags); // also include select tag
+    }
+    sprintf(tag, "%pOUT", x);
     pdgui_vmess(0, "crs", canvas, "delete", tag);
-//    if(!x->x_x_snd){
+    if(x->x_snd == gensym("empty")){
         pdgui_vmess(0, "crr iiii rs rS", canvas, "create", "rectangle",
             xpos, ypos + x->x_size + x->x_zoom - ioh,
             xpos + iow, ypos + x->x_size,
             "-fill", "black",
             "-tags", 2, tags);
-//    }
-    sprintf(tag, "%pIN%d", x, 0);
+    }
+    sprintf(tag, "%pIN", x);
     pdgui_vmess(0, "crs", canvas, "delete", tag);
-//    if(!x->x_rcv){
+    if(x->x_rcv == gensym("empty")){
         pdgui_vmess(0, "crr iiii rs rS", canvas, "create", "rectangle",
-            xpos, ypos,
-            xpos + iow, ypos - x->x_zoom + ioh,
+            xpos, ypos, xpos + iow, ypos - x->x_zoom + ioh,
             "-fill", "black",
             "-tags", 2, tags);
-//    }
-}
-
-static void knob_update_knob(t_knob *x, t_glist *glist){
-    t_canvas *canvas = glist_getcanvas(glist);
-    float angle, angle0;
-    int x0, y0, x1, y1;
-    t_float pos = (x->x_pos - POS_MARGIN) / (1 - 2 * POS_MARGIN);
-    char tag[128];
-    if(pos < 0.0)
-        pos = 0.0;
-    else if(pos > 1.0)
-        pos = 1.0;
-    if(x->x_discrete){
-        t_float ticks = (x->x_ticks < 2 ? 2 : (float)x->x_ticks) -1 ;
-        pos = rint(pos * ticks) / ticks;
     }
-    x0 = text_xpix(&x->x_obj, glist);
-    y0 = text_ypix(&x->x_obj, glist);
-    x1 = x0 + x->x_size;
-    y1 = y0 + x->x_size;
-    angle0 = (x->x_start_angle / 90.0 - 1) * M_PI / 2.0;
-    angle = angle0 + pos * (x->x_end_angle - x->x_start_angle) / 180.0 * M_PI;
-    if(x->x_arc){
-        int arcwidth = x->x_arc * rint(x->x_size / 10);
-        int aD, cD;
-        angle0 += (knob_getpos(x, x->x_init) * x->x_range / 180.0 * M_PI);
-        aD = x->x_zoom;
-        sprintf(tag, "%pARC", x);
-        pdgui_vmess(0, "crs iiii", canvas, "coords", tag,
-            x0 + aD, y0 + aD, x1 - aD, y1 - aD);
-        pdgui_vmess(0, "crs sf sf", canvas, "itemconfigure", tag,
-            "-start", angle0 * -180.0 / M_PI,
-            "-extent", (angle - angle0) * -179.99 / M_PI);
-// center_visible
-        sprintf(tag, "%pCENTER", x);
-        cD = (arcwidth + 1) * x->x_zoom;
-        pdgui_vmess(0, "crs iiii", canvas, "coords", tag,
-            x0 + cD, y0 + cD, x1 - cD, y1 - cD);
-    }
-    #define NEAR(x) ((int)(x + 0.49))
-// wiper
-    float radius = x->x_size / 2.0;
-    float xc, yc, xp, yp;
-    sprintf(tag, "%pWIPER", x);
-    xc = (x0 + x1) / 2.0;
-    yc = (y0 + y1) / 2.0;
-    xp = xc + radius * cos(angle);
-    yp = yc + radius * sin(angle);
-    pdgui_vmess(0, "crs iiii", canvas, "coords", tag,
-        NEAR(xc), NEAR(yc), NEAR(xp), NEAR(yp));
 }
 
 static void knob_update_ticks(t_knob *x, t_glist *glist){
     t_canvas *canvas = glist_getcanvas(glist);
-    int tick;
-    int x0, y0;
-    float xc, yc, xTc, yTc, r1, r2;
-    float alpha0, dalpha;
     char tag_object[128], tag[128];
     char *tags[] = {tag_object, tag};
-    int divs = x->x_ticks;
     sprintf(tag_object, "%pOBJ", x);
     sprintf(tag, "%pTICKS", x);
     pdgui_vmess(0, "crs", canvas, "delete", tag);
     if(!x->x_ticks)
         return;
-    x0 = text_xpix(&x->x_obj, glist);
-    y0 = text_ypix(&x->x_obj, glist);
-    xc = x0 + x->x_size / 2.0;
-    yc = y0 + x->x_size / 2.0;
-    r1 = x->x_size / 2.0 - x->x_zoom * 2.0;
-    r2 = x->x_zoom * 1.0 ;
+    int x0 = text_xpix(&x->x_obj, glist);
+    int y0 = text_ypix(&x->x_obj, glist);
+    float xc = x0 + x->x_size / 2.0;
+    float yc = y0 + x->x_size / 2.0;
+    float r1 = x->x_size / 2.0 - x->x_zoom * 2.0;
+    float r2 = (float)x->x_zoom;
+    int divs = x->x_ticks;
     if((divs > 1) && ((x->x_end_angle - x->x_start_angle + 360) % 360 != 0))
         divs = divs - 1;
-    dalpha = (x->x_end_angle - x->x_start_angle) / (float)divs;
-    alpha0 = x->x_start_angle;
-    for(tick = 0; tick < x->x_ticks; tick++){
+    float dalpha = (x->x_end_angle - x->x_start_angle) / (float)divs;
+    float alpha0 = x->x_start_angle;
+    for(int tick = 0; tick < x->x_ticks; tick++){
         float alpha = (alpha0 + dalpha * tick - 90.0) * M_PI / 180.0;
-        xTc = xc + r1 * cos(alpha);
-        yTc = yc + r1 * sin(alpha);
-        pdgui_vmess(0, "crr iiii rs rs rS",
+        float xTc = xc + r1 * cos(alpha);
+        float yTc = yc + r1 * sin(alpha);
+        int x1 = rint(xTc - r2);
+        int y1 = rint(yTc - r2);
+        int x2 = rint(xTc + r2);
+        int y2 = rint(yTc + r2);
+        pdgui_vmess(0, "crr iiii ri rsrs rS",
             canvas, "create", "oval",
-            NEAR(xTc - r2), NEAR(yTc - r2), NEAR(xTc + r2), NEAR(yTc + r2),
-            "-fill", x->x_fg->s_name,
-            "-outline", x->x_fg->s_name,
+            x1, y1, x2, y2,
+            "-width", x->x_size / 15,
+            "-fill", x->x_bg->s_name, "-outline", x->x_fg->s_name,
             "-tags", 2, tags);
     }
 }
 
+// Update wiper/arc according to [knob]'s value
+static void knob_update_knob(t_knob *x, t_glist *glist){
+    t_canvas *cv = glist_getcanvas(glist);
+    float angle, angle0;
+    t_float pos = x->x_pos;
+    if(x->x_discrete){
+        t_float ticks = (x->x_ticks < 2 ? 2 : (float)x->x_ticks) -1 ;
+        pos = rint(pos * ticks) / ticks;
+    }
+    int x0 = text_xpix(&x->x_obj, glist);
+    int y0 = text_ypix(&x->x_obj, glist);
+    int x1 = x0 + x->x_size;
+    int y1 = y0 + x->x_size;
+    angle0 = (x->x_start_angle / 90.0 - 1) * M_PI / 2.0;
+    angle = angle0 + pos * (x->x_end_angle - x->x_start_angle) / 180.0 * M_PI;
+    char tag[128];
+    if(x->x_arc){
+        int arcwidth = x->x_arc * rint(x->x_size / 10);
+        int aD, cD;
+        angle0 += (knob_getpos(x, x->x_init) * x->x_range / 180.0 * M_PI);
+        aD = x->x_zoom;
+        sprintf(tag, "%pARC", x); // update arc
+        pdgui_vmess(0, "crs iiii", cv, "coords", tag,
+            x0 + aD, y0 + aD, x1 - aD, y1 - aD);
+        pdgui_vmess(0, "crs sf sf", cv, "itemconfigure", tag,
+            "-start", angle0 * -180.0 / M_PI,
+            "-extent", (angle - angle0) * -179.99 / M_PI);
+        sprintf(tag, "%pCENTER", x); // update center
+        cD = (arcwidth + 1) * x->x_zoom;
+        pdgui_vmess(0, "crs iiii", cv, "coords", tag,
+            x0 + cD, y0 + cD, x1 - cD, y1 - cD);
+    }
+// wiper
+    float radius = x->x_size / 2.0;
+    int xc = rint((x0 + x1) / 2.0);
+    int yc = rint((y0 + y1) / 2.0);
+    int xp = xc + rint(radius * cos(angle));
+    int yp = yc + rint(radius * sin(angle));
+    sprintf(tag, "%pWIPER", x);
+    pdgui_vmess(0, "crs iiii", cv, "coords", tag, xc, yc, xp, yp);
+}
+
 static void knob_draw_update(t_knob *x, t_glist *glist){
-    if(glist_isvisible(glist))
+    if(glist_isvisible(x->x_glist) && gobj_shouldvis((t_gobj *)x, x->x_glist))
         knob_update_knob(x, glist);
 }
 
+// new tags for 'BG' / 'FG'
+static void knob_config_colors(t_knob *x, t_canvas *cv){
+    char tag[128];
+    sprintf(tag, "%pBASE", x); // circle
+    pdgui_vmess(0, "crs rs", cv, "itemconfigure", tag,
+        "-fill", x->x_bg->s_name);
+    sprintf(tag, "%pCENTER", x); // center
+    pdgui_vmess(0, "crs rsrs", cv, "itemconfigure", tag,
+        "-outline", x->x_bg->s_name, "-fill", x->x_bg->s_name);
+/*    pdgui_vmess(0, "crs rsrs ri", cv, "itemconfigure", tag,
+        "-outline", x->x_bg->s_name, "-fill", x->x_bg->s_name);
+//        "-width", x->x_zoom); // ?????*/
+    sprintf(tag, "%pARC", x); // arc
+    pdgui_vmess(0, "crs rsrs", cv, "itemconfigure", tag,
+        "-outline", x->x_fg->s_name, "-fill", x->x_fg->s_name);
+    sprintf(tag, "%pWIPER", x); // wiper
+    pdgui_vmess(0, "crs rs", cv, "itemconfigure", tag,
+        "-fill", x->x_fg->s_name);
+}
+
+// configure drawing elements
 static void knob_draw_config(t_knob *x, t_glist *glist){
-    t_canvas *canvas = glist_getcanvas(glist);
-    int xpos = text_xpix(&x->x_obj, glist);
-    int ypos = text_ypix(&x->x_obj, glist);
-    const int zoom = x->x_zoom;
+    t_canvas *cv = glist_getcanvas(glist);
+    char tag[128];
+// configure arc
+    sprintf(tag, "%pARC", x);
+    pdgui_vmess(0, "crs rs ri", cv, "itemconfigure", tag,
+        "-state", x->x_arc ? "normal" : "hidden",
+        "-width", x->x_zoom);
+// configure wiper
     int wiperwidth = (x->x_size / 20);
     if(wiperwidth < 1)
         wiperwidth = 1;
-    char tag[128];
-//    post("config: bg (%s)", x->x_bg->s_name);
-    sprintf(tag, "%pARC", x);
-    pdgui_vmess(0, "crs rs rs rs ri",
-        canvas, "itemconfigure", tag,
-        "-outline", x->x_fg->s_name,
-        "-fill", x->x_fg->s_name,
-        "-state",
-        x->x_arc ? "normal" : "hidden",
-        "-width",
-        zoom);
-    sprintf(tag, "%pCENTER", x);
-    pdgui_vmess(0, "crs rs rs rs ri",
-        canvas,
-        "itemconfigure",
-        tag,
-        "-outline",
-        x->x_bg->s_name,
-        "-fill",
-        x->x_bg->s_name,
-        "-state",
-        "normal", // always normal, not needed
-        "-width",
-        zoom);
     sprintf(tag, "%pWIPER", x);
-    pdgui_vmess(0, "crs rs rs ri",
-        canvas, "itemconfigure", tag,
-        "-fill", x->x_fg->s_name,
-        "-state",
-        "normal", // always normal, not needed
-        "-width",
-        wiperwidth * zoom);
+    pdgui_vmess(0, "crs ri", cv, "itemconfigure", tag,
+        "-width", wiperwidth * x->x_zoom); // do this with 'size'!?!!??!????
+// knob circle
     sprintf(tag, "%pBASE", x);
-    pdgui_vmess(0, "crs rs", canvas, "itemconfigure", tag,
-        "-fill", x->x_bg->s_name);
-    pdgui_vmess(0, "crs iiii", canvas, "coords", tag,
-        xpos, ypos,
-        xpos + x->x_size, ypos + x->x_size);
+    int xpos = text_xpix(&x->x_obj, glist);
+    int ypos = text_ypix(&x->x_obj, glist);
+    pdgui_vmess(0, "crs iiii", cv, "coords", tag, //  size
+        xpos, ypos, xpos + x->x_size, ypos + x->x_size);
+// more actions
+    knob_config_colors(x, cv);
     knob_update_knob(x, glist);
     knob_update_ticks(x, glist);
 }
 
 static void knob_draw_new(t_knob *x, t_glist *glist){
+// create drawing elements
     t_canvas *canvas = glist_getcanvas(glist);
     char tag[128], tag_object[128], tag_select[128];
-    char *tags[] = {tag_object, tag};
-    char *seltags[] = {tag_object, tag, tag_select};
     sprintf(tag_object, "%pOBJ", x);
     sprintf(tag_select, "%pSELECT", x);
-    sprintf(tag, "%pBASE", x);
+    char *tags[] = {tag, tag_object, tag_select};
+    sprintf(tag, "%pBASE", x); // knob circle
     pdgui_vmess(0, "crr iiii rS", canvas, "create", "oval",
-         0, 0, 0, 0, "-tags", 3, seltags);
-    knob_draw_io(x, glist, 0);
-    sprintf(tag, "%pARC", x);
+        0, 0, 0, 0, "-tags", 3, tags);
+    sprintf(tag, "%pARC", x); // knob arc
     pdgui_vmess(0, "crr iiii rS", canvas, "create", "arc",
-         0, 0, 0, 0, "-tags", 2, tags);
-    sprintf(tag, "%pCENTER", x);
+        0, 0, 0, 0, "-tags", 2, tags);
+    sprintf(tag, "%pCENTER", x); // knob center
     pdgui_vmess(0, "crr iiii rS", canvas, "create", "oval",
-         0, 0, 0, 0, "-tags", 2, tags);
-    sprintf(tag, "%pWIPER", x);
+        0, 0, 0, 0, "-tags", 2, tags);
+    sprintf(tag, "%pWIPER", x); // knob wiper
     pdgui_vmess(0, "crr iiii rS", canvas, "create", "line",
-         0, 0, 0, 0, "-tags", 2, tags);
+        0, 0, 0, 0, "-tags", 2, tags);
+    knob_draw_io(x, glist, 0); // knob outline, inlet/outlet
     knob_draw_config(x, glist);
 }
-
-/*static void knob_draw_select(t_knob *x, t_glist *glist){
-    t_canvas *canvas = glist_getcanvas(glist);
-    char tag[128];
-    sprintf(tag, "%pSELECT", x);
-    pdgui_vmess(0, "crs rk", canvas, "itemconfigure", tag, "-outline",
-        x->x_sel ? "blue" : "black");
-}*/
 
 static void knob_send(t_knob *x, t_symbol *s){
     x->x_snd = s;
@@ -355,8 +334,11 @@ void knob_vis(t_gobj *z, t_glist *glist, int vis){
     t_knob* x = (t_knob*)z;
     if(vis)
         knob_draw_new(x, glist);
-    else
-        sys_vgui(".x%lx.c delete %pOBJ\n", glist_getcanvas(glist), x);
+    else{
+        char tag[128];
+        sprintf(tag, "%pOBJ", x);
+        pdgui_vmess(0, "crs", glist_getcanvas(glist), "delete", tag);
+    }
 }
 
 static void knob_delete(t_gobj *z, t_glist *glist){
@@ -374,7 +356,6 @@ static void knob_getrect(t_gobj *z, t_glist *glist, int *xp1, int *yp1, int *xp2
 
 static void knob_save(t_gobj *z, t_binbuf *b){
     t_knob *x = (t_knob *)z;
-//    post("save: bg (%s)", x->x_bg->s_name);
     binbuf_addv(b, "ssiis",
         gensym("#X"),
         gensym("obj"),
@@ -413,10 +394,9 @@ static void knob_range(t_knob *x, t_floatarg f1, t_floatarg f2){
 }
 
 static void knob_exp(t_knob *x, t_floatarg f){
-    if(f == 0 || f == 1) {
+    if(f == 0 || f == 1)
         x->x_expmode = f;
-    }
-    else {
+    else{
         x->x_expmode = 2;
         x->x_exp = f;
     }
@@ -504,14 +484,35 @@ static void knob_angle(t_knob *x, t_floatarg f1, t_floatarg f2){
     x->x_start_angle = start;
     x->x_end_angle = end;
     knob_set(x, x->x_fval);
-    if(glist_isvisible(x->x_glist))
+    if(glist_isvisible(x->x_glist) && gobj_shouldvis((t_gobj *)x, x->x_glist))
         knob_update_ticks(x, x->x_glist);
     knob_draw_update(x, x->x_glist);
 }
 
 static void knob_size(t_knob *x, t_floatarg f){
-    x->x_size = (f < MIN_SIZE ? MIN_SIZE : f) * x->x_zoom;
-//    (*x->x_gui.x_draw)(x, x->x_glist, IEM_GUI_DRAW_MODE_MOVE);
+    float size = f < MIN_SIZE ? MIN_SIZE : f;
+    if(x->x_size != size){
+        x->x_size = size;
+        if(glist_isvisible(x->x_glist) && gobj_shouldvis((t_gobj *)x, x->x_glist)){
+            knob_draw_config(x, x->x_glist);
+            knob_draw_update(x, x->x_glist);
+            int outline = 1;
+            if(outline){
+                int xpos = text_xpix(&x->x_obj, x->x_glist);
+                int ypos = text_ypix(&x->x_obj, x->x_glist);
+                t_canvas *cv = glist_getcanvas(x->x_glist);
+                char tag[128];
+                sprintf(tag, "%pOUTLINE", x);
+                pdgui_vmess(0, "crs iiii", cv, "coords", tag,
+                    xpos, ypos, xpos + x->x_size, ypos + x->x_size);
+                sprintf(tag, "%pOUT", x);
+                pdgui_vmess(0, "crs iiii", cv, "coords", tag,
+                    xpos, ypos + x->x_size * x->x_zoom - OHEIGHT * x->x_zoom,
+                    xpos + IOWIDTH * x->x_zoom, ypos + x->x_size * x->x_zoom);
+            }
+            canvas_fixlinesfor(x->x_glist, (t_text *)x);
+        }
+    }
 }
 
 static void knob_apply(t_knob *x, t_symbol *s, int argc, t_atom *argv){
@@ -549,9 +550,7 @@ static void knob_apply(t_knob *x, t_symbol *s, int argc, t_atom *argv){
         x->x_init = x->x_fval;
     }
     x->x_circular = circular;
-    if(ticks < 0)
-        ticks = 0;
-    x->x_ticks = ticks;
+    x->x_ticks = ticks < 0 ? 0 : ticks;
     x->x_arc = arc;
     x->x_discrete = discrete;
     knob_angle(x, (float)range, (float)offset);
@@ -561,12 +560,6 @@ static void knob_apply(t_knob *x, t_symbol *s, int argc, t_atom *argv){
     knob_set(x, x->x_fval);
     knob_send(x, snd);
     knob_receive(x, rcv);
-    knob_draw_config(x, x->x_glist);
-
-//    (*x->x_gui.x_draw)(x, x->x_glist, IEM_GUI_DRAW_MODE_CONFIG);
-//    (*x->x_gui.x_draw)(x, x->x_glist, IEM_GUI_DRAW_MODE_IO + sr_flags);
-//    (*x->x_gui.x_draw)(x, x->x_glist, IEM_GUI_DRAW_MODE_MOVE);
-    canvas_fixlinesfor(x->x_glist, (t_text *)x);
 }
 
 static void knob_motion(t_knob *x, t_floatarg dx, t_floatarg dy){
@@ -636,10 +629,9 @@ static void knob_circular(t_knob *x, t_floatarg f){
     x->x_circular = (f != 0);
 }
 
-
 static void knob_arc(t_knob *x, t_floatarg f){
     x->x_arc = f != 0;
-    if(glist_isvisible(x->x_glist)){
+    if(glist_isvisible(x->x_glist) && gobj_shouldvis((t_gobj *)x, x->x_glist)){
         knob_draw_config(x, x->x_glist);
         knob_draw_update(x, x->x_glist);
     }
@@ -653,7 +645,7 @@ static void knob_ticks(t_knob *x, t_floatarg f){
         x->x_ticks = 2;
     if(f > 100)
         x->x_ticks = 100;
-    if(glist_isvisible(x->x_glist))
+    if(glist_isvisible(x->x_glist) && gobj_shouldvis((t_gobj *)x, x->x_glist))
         knob_update_ticks(x, x->x_glist);
 }
 
@@ -691,28 +683,26 @@ static void *knob_new(t_symbol *s, int argc, t_atom *argv){
         range = atom_getintarg(14, argc, argv);
         offset = atom_getintarg(15, argc, argv);
     }
-//    post("new: bg (%s)", x->x_bg->s_name);
     x->x_expmode = expmode;
     x->x_exp = exp;
     x->x_circular = circular;
     x->x_glist = (t_glist *)canvas_getcurrent();
     knob_ticks(x, ticks);
     x->x_discrete = discrete;
-
-//    if(x->x_gui.x_fsf.x_rcv_able)
-//        pd_bind(&x->x_obj.ob_pd, x->x_gui.x_rcv);
     x->x_arc = arc;
     knob_angle(x, range, offset);
     knob_size(x, size);
     knob_range(x, min, max);
     knob_set(x, x->x_init = initvalue);
+    if(x->x_rcv != gensym("empty"))
+        pd_bind(&x->x_obj.ob_pd, x->x_rcv);
     outlet_new(&x->x_obj, &s_float);
     return(x);
 }
 
 static void knob_free(t_knob *x){
-//    if(x->x_gui.x_fsf.x_rcv_able)
-//        pd_unbind(&x->x_obj.ob_pd, x->x_gui.x_rcv);
+    if(x->x_rcv != gensym("empty"))
+        pd_unbind(&x->x_obj.ob_pd, x->x_rcv);
     gfxstub_deleteforkey(x);
 }
 
