@@ -48,7 +48,6 @@ typedef struct _knob{
     int         x_arc;
     int         x_zoom;
     int         x_discrete;
-    char        x_tag[128];         // generic tag
     char        x_tag_obj[128];
     char        x_tag_base[128];
     char        x_tag_sel[128];
@@ -163,7 +162,7 @@ static void knob_draw_io(t_knob *x,t_glist *glist){
     }
 }
 
-static void knob_update_ticks(t_knob *x, t_glist *glist){
+static void knob_draw_ticks(t_knob *x, t_glist *glist){
     t_canvas *cv = glist_getcanvas(glist);
     pdgui_vmess(0, "crs", cv, "delete", x->x_tag_ticks);
     if(!x->x_ticks)
@@ -173,7 +172,10 @@ static void knob_update_ticks(t_knob *x, t_glist *glist){
     float xc = x0 + x->x_size / 2.0;
     float yc = y0 + x->x_size / 2.0;
     float r1 = x->x_size / 2.0 - x->x_zoom * 2.0;
-    float r2 = (float)x->x_zoom;
+    int r2 = (int)((float)x->x_size / 20);
+    if(r2 < 2)
+        r2 = 2;
+    r2 *= x->x_zoom;
     int divs = x->x_ticks;
     if((divs > 1) && ((x->x_end_angle - x->x_start_angle + 360) % 360 != 0))
         divs = divs - 1;
@@ -188,13 +190,9 @@ static void knob_update_ticks(t_knob *x, t_glist *glist){
         int x2 = rint(xTc + r2);
         int y2 = rint(yTc + r2);
         char *tags[] = {x->x_tag_ticks, x->x_tag_obj};
-        int tickwidth = x->x_size / 20;
-        if(tickwidth < 2)
-            tickwidth = 2;
-        pdgui_vmess(0, "crr iiii ri rsrs rS",
+        pdgui_vmess(0, "crr iiii rsrs rS",
             cv, "create", "oval",
             x1, y1, x2, y2,
-            "-width", tickwidth,
             "-outline", x->x_fg->s_name, "-fill", x->x_fg->s_name,
             "-tags", 2, tags);
     }
@@ -206,7 +204,7 @@ static void knob_update_knob(t_knob *x, t_glist *glist){
     float angle, angle0;
     t_float pos = x->x_pos;
     if(x->x_discrete){
-        t_float ticks = (x->x_ticks < 2 ? 2 : (float)x->x_ticks) -1 ;
+        t_float ticks = (x->x_ticks < 2 ? 2 : (float)x->x_ticks) -1;
         pos = rint(pos * ticks) / ticks;
     }
     int x0 = text_xpix(&x->x_obj, glist);
@@ -261,21 +259,58 @@ static void knob_config_bg(t_knob *x, t_canvas *cv){
         "-outline", x->x_bg->s_name, "-fill", x->x_bg->s_name);
 }
 
-static void knob_config_colors(t_knob *x, t_canvas *cv){
-    knob_config_bg(x, cv);
-    knob_config_fg(x, cv);
-}
-
 static void knob_bgcolor(t_knob *x, t_symbol *s, int ac, t_atom *av){
     s = NULL;
-    x->x_bg = atom_getsymbolarg(0, ac, av);
-    knob_config_bg(x, glist_getcanvas(x->x_glist));
+    if(!ac)
+        return;
+    t_symbol *color;
+    if((av)->a_type == A_SYMBOL)
+        color = atom_getsymbolarg(0, ac, av);
+    else{
+        if(ac != 3)
+            return;
+        int r = atom_getintarg(0, ac, av);
+        int g = atom_getintarg(1, ac, av);
+        int b = atom_getintarg(2, ac, av);
+        r = r < 0 ? 0 : r > 255 ? 255 : r;
+        g = g < 0 ? 0 : g > 255 ? 255 : g;
+        b = b < 0 ? 0 : b > 255 ? 255 : b;
+        char bg[20];
+        sprintf(bg, "#%2.2x%2.2x%2.2x", r, g, b);
+        color = gensym(bg);
+    }
+    if(x->x_bg != color){
+        x->x_bg = color;
+        if(glist_isvisible(x->x_glist) && gobj_shouldvis((t_gobj *)x, x->x_glist))
+            knob_config_bg(x, glist_getcanvas(x->x_glist));
+    }
 }
 
 static void knob_fgcolor(t_knob *x, t_symbol *s, int ac, t_atom *av){
     s = NULL;
-    x->x_fg = atom_getsymbolarg(0, ac, av);
-    knob_config_fg(x, glist_getcanvas(x->x_glist));
+    if(!ac)
+        return;
+    t_symbol *color;
+    if((av)->a_type == A_SYMBOL)
+        color = atom_getsymbolarg(0, ac, av);
+    else{
+        if(ac != 3)
+            return;
+        int r = atom_getintarg(0, ac, av);
+        int g = atom_getintarg(1, ac, av);
+        int b = atom_getintarg(2, ac, av);
+        r = r < 0 ? 0 : r > 255 ? 255 : r;
+        g = g < 0 ? 0 : g > 255 ? 255 : g;
+        b = b < 0 ? 0 : b > 255 ? 255 : b;
+        char fg[20];
+        sprintf(fg, "#%2.2x%2.2x%2.2x", r, g, b);
+        color = gensym(fg);
+    }
+    if(x->x_fg != color){
+        x->x_fg = color;
+        if(glist_isvisible(x->x_glist) && gobj_shouldvis((t_gobj *)x, x->x_glist))
+            knob_config_fg(x, glist_getcanvas(x->x_glist));
+    }
 }
 
 // configure drawing elements
@@ -296,9 +331,10 @@ static void knob_draw_config(t_knob *x, t_glist *glist){
     pdgui_vmess(0, "crs iiii", cv, "coords", x->x_tag_base,
         xpos, ypos, xpos + x->x_size, ypos + x->x_size);
 // more actions
-    knob_config_colors(x, cv);
+    knob_config_bg(x, cv);
+    knob_config_fg(x, cv);
     knob_update_knob(x, glist);
-    knob_update_ticks(x, glist);
+    knob_draw_ticks(x, glist);
 }
 
 static void knob_draw_new(t_knob *x, t_glist *glist){
@@ -486,7 +522,7 @@ static void knob_angle(t_knob *x, t_floatarg f1, t_floatarg f2){
     x->x_end_angle = end;
     knob_set(x, x->x_fval);
     if(glist_isvisible(x->x_glist) && gobj_shouldvis((t_gobj *)x, x->x_glist))
-        knob_update_ticks(x, x->x_glist);
+        knob_draw_ticks(x, x->x_glist);
     knob_draw_update(x, x->x_glist);
 }
 
@@ -655,7 +691,7 @@ static void knob_ticks(t_knob *x, t_floatarg f){
     if(f > 100)
         x->x_ticks = 100;
     if(glist_isvisible(x->x_glist) && gobj_shouldvis((t_gobj *)x, x->x_glist))
-        knob_update_ticks(x, x->x_glist);
+        knob_draw_ticks(x, x->x_glist);
 }
 
 static void knob_zoom(t_knob *x, t_floatarg f){
