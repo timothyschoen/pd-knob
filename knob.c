@@ -20,9 +20,7 @@
 
 #define HALF_PI (M_PI / 2)
 
-#define KNOB_SENSITIVITY 128
-#define DEF_SIZE         35
-#define MIN_SIZE         15
+#define MIN_SIZE   16
 
 typedef struct _knob{
     t_object    x_obj;
@@ -183,7 +181,7 @@ static void knob_config_size(t_knob *x, t_canvas *cv){
     pdgui_vmess(0, "crs ri", cv, "itemconfigure", x->x_tag_wiper,
         "-width", w_width); // wiper width
     pdgui_vmess(0, "crs iiii", cv, "coords", x->x_tag_wpr_c,
-        wx1, wy1, wx2, wy2); // wiper circle
+        wx1, wy1, wx2, wy2); // wiper center circle
 // knob arc
     pdgui_vmess(0, "crs iiii", cv, "coords", x->x_tag_arc,
         x1 + x->x_zoom, y1 + x->x_zoom, x2 - x->x_zoom, y2 - x->x_zoom);
@@ -192,6 +190,8 @@ static void knob_config_size(t_knob *x, t_canvas *cv){
         x1, y1, x2, y2);
 // knob center
     int arcwidth = r / 5; // arc width is 1/5 of radius
+    if(arcwidth < 1)
+        arcwidth = 1;
     pdgui_vmess(0, "crs iiii", cv, "coords", x->x_tag_center,
         x1 + arcwidth, y1 + arcwidth, x2 - arcwidth, y2 - arcwidth);
 }
@@ -261,8 +261,8 @@ static void knob_draw_ticks(t_knob *x, t_glist *glist){
         float w = t*delta_w + start; // tick angle
         w *= M_PI/180.0; // in radians
         float dx = r * cos(w), dy = r * sin(w);
-        int x1 = xc + (int)(dx*1.0);
-        int y1 = yc + (int)(dy*1.0);
+        int x1 = xc + (int)(dx);
+        int y1 = yc + (int)(dy);
         int x2 = xc + (int)(dx*0.75);
         int y2 = yc + (int)(dy*0.75);
         char *tags_ticks[] = {x->x_tag_ticks, x->x_tag_obj};
@@ -309,6 +309,7 @@ static void knob_draw_new(t_knob *x, t_canvas *cv){
         knob_config_bg(x, cv);
         knob_config_fg(x, cv);
         knob_config_arc(x, cv);
+        knob_config_wcenter(x, cv, x->x_clicked);
         
         knob_update(x, cv);
 
@@ -470,11 +471,8 @@ static void knob_arc(t_knob *x, t_floatarg f){
     int arc = f != 0;
     if(x->x_arc != arc){
         x->x_arc = arc;
-        if(glist_isvisible(x->x_glist) && gobj_shouldvis((t_gobj *)x, x->x_glist)){
-            t_canvas *cv = glist_getcanvas(x->x_glist);
-            knob_config_arc(x, cv);
-//            knob_update(x, cv);
-        }
+        if(glist_isvisible(x->x_glist) && gobj_shouldvis((t_gobj *)x, x->x_glist))
+            knob_config_arc(x, glist_getcanvas(x->x_glist));
     }
 }
 
@@ -498,7 +496,7 @@ static void knob_ticks(t_knob *x, t_floatarg f){
 static t_symbol *getcolor(t_symbol *s, int ac, t_atom *av){
     s = NULL;
     if((av)->a_type == A_SYMBOL)
-        return(atom_getsymbolarg(0, ac, av));
+        return(atom_getsymbol(av));
     else{
         int r = atom_getintarg(0, ac, av);
         int g = atom_getintarg(1, ac, av);
@@ -647,41 +645,6 @@ static void knob_apply(t_knob *x, t_symbol *s, int ac, t_atom *av){
 
 // --------------- click + motion stuff --------------------
 
-static void knob_list(t_knob *x, t_symbol *sym, int ac, t_atom *av){ // get key events
-    if(ac == 1 && av->a_type == A_FLOAT){
-        knob_float(x, atom_getfloat(av));
-        return;
-    }
-    if(!x->x_clicked || ac != 2)
-        return;
-//    if(x->x_glist->gl_edit || !x->x_clicked || !x->x_outmode || ac != 2)
-//        return;  // ignore if: edit mode / not clicked / monitor mode / wrong size list
-    int flag = (int)atom_getfloat(av); // 1 for press / 0 for release
-    sym = atom_getsymbol(av+1); // get key name
-    if(flag && sym == gensym("Up")){
-//        numbox_float(x, numbox_clip(x, x->x_out_val + x->x_inc));
-        post("up");
-    }
-    if(flag && sym == gensym("Down")){
-//        numbox_float(x, numbox_clip(x, x->x_out_val - x->x_inc));
-        post("down");
-    }
-}
-
-static void knob_key(void *z, t_symbol *keysym, t_floatarg fkey){
-    keysym = NULL; // unused, avoid warning
-    t_knob *x = z;
-    char c = fkey, buf[3];
-    buf[1] = 0;
-    if(c == 0){ // click out
-        pd_unbind((t_pd *)x, gensym("#keyname"));
-        knob_config_wcenter(x, glist_getcanvas(x->x_glist), x->x_clicked = 0);
-    }
-    else if(((c == '\n') || (c == 13))) // enter
-        knob_float(x, x->x_fval);
-}
-
-
 static int xm, ym;
 
 static void knob_motion(t_knob *x, t_floatarg dx, t_floatarg dy){
@@ -690,7 +653,7 @@ static void knob_motion(t_knob *x, t_floatarg dx, t_floatarg dy){
         float delta = -dy;
         if(fabs(dx) > fabs(dy))
             delta = dx;
-        delta /= (float)(KNOB_SENSITIVITY * x->x_zoom);
+        delta /= (float)(x->x_size) * x->x_zoom * 2; // 2 is 'sensitivity'
         if(x->x_shift)
             delta *= 0.01;
         pos = x->x_pos + delta;
@@ -704,13 +667,44 @@ static void knob_motion(t_knob *x, t_floatarg dx, t_floatarg dy){
         pos = (((int)((alpha - alphacenter + 180.0 + 360.0) * 100.0) % 36000) * 0.01
             + (alphacenter - x->x_start_angle - 180.0)) / x->x_range;
     }
-    x->x_pos = pos > 1 ? 1 : pos < 0 ? 0 : pos;
+    x->x_pos = pos > 1 ? 1 : pos < 0 ? 0 : pos; // should go up in non circular (to do)
     x->x_fval = knob_getfval(x);
     if(old != x->x_pos){
         if(glist_isvisible(x->x_glist) && gobj_shouldvis((t_gobj *)x, x->x_glist))
             knob_update(x, glist_getcanvas(x->x_glist));
     }
     knob_bang(x);
+}
+
+static void knob_list(t_knob *x, t_symbol *sym, int ac, t_atom *av){ // get key events
+    if(ac == 1 && av->a_type == A_FLOAT){ // also implement bang (to do)
+        knob_float(x, atom_getfloat(av));
+        return;
+    }
+    if(!x->x_clicked || ac != 2 || x->x_circular) // also ignore edit mode when implemented
+        return;
+    int dir = 0;
+    int flag = (int)atom_getfloat(av); // 1 for press, 0 for release
+    sym = atom_getsymbol(av+1); // get key name
+    if(flag && (sym == gensym("Up") || (sym == gensym("Right"))))
+        dir = 1;
+    else if(flag && (sym == gensym("Down") || (sym == gensym("Left"))))
+        dir = -1;
+    if(dir != 0)
+        knob_motion(x, dir, 0);
+}
+
+static void knob_key(void *z, t_symbol *keysym, t_floatarg fkey){
+    keysym = NULL; // unused, avoid warning
+    t_knob *x = z;
+    char c = fkey, buf[3];
+    buf[1] = 0;
+    if(c == 0){ // click out
+        pd_unbind((t_pd *)x, gensym("#keyname"));
+        knob_config_wcenter(x, glist_getcanvas(x->x_glist), x->x_clicked = 0);
+    }
+    else if(((c == '\n') || (c == 13))) // enter
+        knob_float(x, x->x_fval);
 }
 
 static int knob_click(t_gobj *z, struct _glist *glist, int xpix, int ypix, int shift, int alt, int dbl, int doit){
@@ -727,7 +721,6 @@ static int knob_click(t_gobj *z, struct _glist *glist, int xpix, int ypix, int s
         x->x_shift = shift;
         knob_bang(x);
         glist_grab(glist, &x->x_obj.te_g, (t_glistmotionfn)(knob_motion), knob_key, xm = xpix, ym = ypix);
-
     }
     return(1);
 }
@@ -737,12 +730,12 @@ static void *knob_new(t_symbol *s, int ac, t_atom *av){
     s = NULL;
     t_knob *x = (t_knob *)pd_new(knob_class);
     float initvalue = 0, exp = 0;
-    x->x_snd = gensym("empty");
-    x->x_rcv = gensym("empty");
-    int size = 30, circular = 0, ticks = 0, discrete = 0, expmode = 0;
+    x->x_snd = gensym("empty"), x->x_rcv = gensym("empty");
+    int size = 50, circular = 0, ticks = 0, discrete = 0, expmode = 0;
     int arc = 1, range = 360, offset = 0;
     double min = 0.0, max = 127.0;
     x->x_bg = gensym("#dfdfdf"), x->x_fg = gensym("black");
+    x->x_clicked = 0;
     x->x_glist = (t_glist *)canvas_getcurrent();
     x->x_zoom = x->x_glist->gl_zoom;
     if(ac){
