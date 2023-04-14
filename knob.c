@@ -58,10 +58,11 @@ typedef struct _knob{
     t_symbol       *x_bg;
     t_symbol       *x_snd;
     t_symbol       *x_snd_raw;
-//    int           x_rcv_set;
+    int             x_r_flag;
+    int             x_flag;
+    int             x_rcv_set;
     t_symbol       *x_rcv;
     t_symbol       *x_rcv_raw;
-//    int           x_rcv_set;
     int             x_circular;
     int             x_arc;
     int             x_zoom;
@@ -782,6 +783,8 @@ static void edit_proxy_any(t_edit_proxy *p, t_symbol *s, int ac, t_atom *av){
     }
 }
 
+// ---------------------- new / free / setup ----------------------
+
 static void edit_proxy_free(t_edit_proxy *p){
     pd_unbind(&p->p_obj.ob_pd, p->p_sym);
     clock_free(p->p_clock);
@@ -805,38 +808,213 @@ static void knob_free(t_knob *x){
     gfxstub_deleteforkey(x);
 }
 
-// ---------------------- new / free / setup ----------------------
 static void *knob_new(t_symbol *s, int ac, t_atom *av){
     s = NULL;
     t_knob *x = (t_knob *)pd_new(knob_class);
-    float initvalue = 0, exp = 0;
+    float initvalue = 0, exp = 0, min = 0.0, max = 127.0;
     t_symbol *snd = gensym("empty");
     t_symbol *rcv = gensym("empty");
     int size = 50, circular = 0, ticks = 0, discrete = 0, expmode = 0;
-    int arc = 1, range = 360, offset = 0;
-    double min = 0.0, max = 127.0;
+    int arc = 1, angle = 360, offset = 0;
     x->x_bg = gensym("#dfdfdf"), x->x_fg = gensym("black");
     x->x_clicked = 0;
     x->x_outline = 0;
     x->x_glist = (t_glist *)canvas_getcurrent();
     x->x_zoom = x->x_glist->gl_zoom;
     if(ac){
-        size = atom_getintarg(0, ac, av);
-        min = (double)atom_getfloatarg(1, ac, av);
-        max = (double)atom_getfloatarg(2, ac, av);
-        exp = atom_getfloatarg(3, ac, av);
-        expmode = atom_getfloatarg(4, ac, av);
-        snd = atom_getsymbolarg(5, ac, av);
-        rcv = atom_getsymbolarg(6, ac, av);
-        x->x_bg = atom_getsymbolarg(7, ac, av);
-        x->x_fg = atom_getsymbolarg(8, ac, av);
-        initvalue = atom_getfloatarg(9, ac, av);
-        circular = atom_getintarg(10, ac, av);
-        ticks = atom_getintarg(11, ac, av);
-        discrete = atom_getintarg(12, ac, av);
-        arc = atom_getintarg(13, ac, av);
-        range = atom_getintarg(14, ac, av);
-        offset = atom_getintarg(15, ac, av);
+        if(av->a_type == A_FLOAT){
+            size = atom_getintarg(0, ac, av);
+            min = atom_getfloatarg(1, ac, av);
+            max = atom_getfloatarg(2, ac, av);
+            exp = atom_getfloatarg(3, ac, av);
+            expmode = atom_getfloatarg(4, ac, av);
+            snd = atom_getsymbolarg(5, ac, av);
+            rcv = atom_getsymbolarg(6, ac, av);
+            x->x_bg = atom_getsymbolarg(7, ac, av);
+            x->x_fg = atom_getsymbolarg(8, ac, av);
+            initvalue = atom_getfloatarg(9, ac, av);
+            circular = atom_getintarg(10, ac, av);
+            ticks = atom_getintarg(11, ac, av);
+            discrete = atom_getintarg(12, ac, av);
+            arc = atom_getintarg(13, ac, av);
+            angle = atom_getintarg(14, ac, av);
+            offset = atom_getintarg(15, ac, av);
+        }
+        else{
+            while(ac){
+                t_symbol *sym = atom_getsymbol(av);
+                if(sym == gensym("-size")){
+                    if(ac >= 2){
+                        x->x_flag = 1, av++, ac--;
+                        if(av->a_type == A_FLOAT){
+                            size = atom_getint(av);
+                            av++, ac--;
+                        }
+                        else
+                            goto errstate;
+                    }
+                    else
+                        goto errstate;
+                }
+                else if(sym == gensym("-range")){
+                    if(ac >= 3){
+                        x->x_flag = 1, av++, ac--;
+                        min = atom_getfloat(av);
+                        av++, ac--;
+                        max = atom_getfloat(av);
+                        av++, ac--;
+                    }
+                    else
+                        goto errstate;
+                }
+                else if(sym == gensym("-exp")){
+                    if(ac >= 2){
+                        x->x_flag = 1, av++, ac--;
+                        if(av->a_type == A_FLOAT){
+                            exp = atom_getfloat(av);
+                            av++, ac--;
+                        }
+                        else
+                            goto errstate;
+                    }
+                    else
+                        goto errstate;
+                }
+                else if(sym == gensym("-send")){
+                    if(ac >= 2){
+                        x->x_flag = x->x_r_flag = 1, av++, ac--;
+                        if(av->a_type == A_SYMBOL){
+                            snd = atom_getsymbol(av);
+                            av++, ac--;
+                        }
+                        else
+                            goto errstate;
+                    }
+                    else
+                        goto errstate;
+                }
+                else if(sym == gensym("-receive")){
+                    if(ac >= 2){
+                        x->x_flag = x->x_r_flag = 1, av++, ac--;
+                        if(av->a_type == A_SYMBOL){
+                            rcv = atom_getsymbol(av);
+                            av++, ac--;
+                        }
+                        else
+                            goto errstate;
+                    }
+                    else
+                        goto errstate;
+                }
+                else if(sym == gensym("-bgcolor")){
+                    if(ac >= 2){
+                        x->x_flag = 1, av++, ac--;
+                        if(av->a_type == A_SYMBOL){
+                            x->x_bg = atom_getsymbol(av);
+                            av++, ac--;
+                        }
+                        else
+                            goto errstate;
+                    }
+                    else
+                        goto errstate;
+                }
+                else if(sym == gensym("-fgcolor")){
+                    if(ac >= 2){
+                        x->x_flag = 1, av++, ac--;
+                        if(av->a_type == A_SYMBOL){
+                            x->x_fg = atom_getsymbol(av);
+                            av++, ac--;
+                        }
+                        else
+                            goto errstate;
+                    }
+                    else
+                        goto errstate;
+                }
+                else if(sym == gensym("-init")){
+                    if(ac >= 2){
+                        x->x_flag = 1, av++, ac--;
+                        if(av->a_type == A_FLOAT){
+                            initvalue = atom_getfloat(av);
+                            av++, ac--;
+                        }
+                        else
+                            goto errstate;
+                    }
+                    else
+                        goto errstate;
+                }
+                else if(sym == gensym("-circular")){
+                    if(ac >= 1){
+                        x->x_flag = 1, av++, ac--;
+                        if(av->a_type == A_FLOAT)
+                            circular = 1;
+                    }
+                    else
+                        goto errstate;
+                }
+                else if(sym == gensym("-ticks")){
+                    if(ac >= 2){
+                        x->x_flag = 1, av++, ac--;
+                        if(av->a_type == A_FLOAT){
+                            ticks = atom_getint(av);
+                            av++, ac--;
+                        }
+                        else
+                            goto errstate;
+                    }
+                    else
+                        goto errstate;
+                }
+                else if(sym == gensym("-discrete")){
+                    if(ac >= 1){
+                        x->x_flag = 1, av++, ac--;
+                        if(av->a_type == A_FLOAT)
+                            discrete = 1;
+                    }
+                    else
+                        goto errstate;
+                }
+                else if(sym == gensym("-arc")){
+                    if(ac >= 1){
+                        x->x_flag = 1, av++, ac--;
+                        if(av->a_type == A_FLOAT)
+                            arc = 1;
+                    }
+                    else
+                        goto errstate;
+                }
+                else if(sym == gensym("-angle")){
+                    if(ac >= 2){
+                        x->x_flag = 1, av++, ac--;
+                        if(av->a_type == A_FLOAT){
+                            angle = atom_getint(av);
+                            av++, ac--;
+                        }
+                        else
+                            goto errstate;
+                    }
+                    else
+                        goto errstate;
+                }
+                else if(sym == gensym("-offset")){
+                    if(ac >= 2){
+                        x->x_flag = 1, av++, ac--;
+                        if(av->a_type == A_FLOAT){
+                            offset = atom_getint(av);
+                            av++, ac--;
+                        }
+                        else
+                            goto errstate;
+                    }
+                    else
+                        goto errstate;
+                }
+                else
+                    goto errstate;
+            }
+        }
     }
     x->x_rcv = canvas_realizedollar(x->x_glist, x->x_rcv_raw = rcv);
     x->x_snd = canvas_realizedollar(x->x_glist, x->x_snd_raw = snd);
@@ -847,7 +1025,7 @@ static void *knob_new(t_symbol *s, int ac, t_atom *av){
     x->x_ticks = ticks < 0 ? 0 : ticks;
     x->x_discrete = discrete;
     x->x_arc = arc;
-    x->x_range = range < 0 ? 0 : range > 360 ? 360 : range;
+    x->x_range = angle < 0 ? 0 : angle > 360 ? 360 : angle;
     x->x_offset = offset < 0 ? 0 : offset > 360 ? 360 : offset;
     x->x_start_angle = -(x->x_range/2) + x->x_offset;
     x->x_end_angle = x->x_range/2 + x->x_offset;
@@ -876,6 +1054,9 @@ static void *knob_new(t_symbol *s, int ac, t_atom *av){
         pd_bind(&x->x_obj.ob_pd, x->x_rcv);
     outlet_new(&x->x_obj, &s_float);
     return(x);
+errstate:
+    pd_error(x, "[knob]: improper creation arguments");
+    return(NULL);
 }
 
 void knob_setup(void){
