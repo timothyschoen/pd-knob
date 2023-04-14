@@ -595,6 +595,7 @@ static void knob_exp(t_knob *x, t_floatarg f){
 
 static void knob_outline(t_knob *x, t_floatarg f){
     x->x_outline = (int)f;
+    knob_config_io(x, glist_getcanvas(x->x_glist));
 }
 
 static void knob_zoom(t_knob *x, t_floatarg f){
