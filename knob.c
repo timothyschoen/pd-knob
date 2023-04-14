@@ -22,53 +22,62 @@
 
 #define MIN_SIZE   16
 
-typedef struct _knob{
-    t_object    x_obj;
-    t_glist    *x_glist;
-    int         x_size;
-    t_float     x_pos; // 0-1 normalized position
-    t_float     x_exp;
-    int         x_expmode;
-    t_float     x_init;
-    int         x_start_angle;
-    int         x_end_angle;
-    int         x_range;
-    int         x_offset;
-    int         x_ticks;
-    int         x_outline;
-    double      x_min;
-    double      x_max;
-    int         x_clicked;
-    int         x_sel;
-    int         x_shift;
-    t_float     x_fval;
-    t_symbol   *x_fg;
-    t_symbol   *x_bg;
-    t_symbol   *x_snd;
-    t_symbol   *x_snd_raw;
-//    int         x_rcv_set;
-    t_symbol   *x_rcv;
-    t_symbol   *x_rcv_raw;
-//    int         x_rcv_set;
-    int         x_circular;
-    int         x_arc;
-    int         x_zoom;
-    int         x_discrete;
-    char        x_tag_obj[128];
-    char        x_tag_circle[128];
-    char        x_tag_arc[128];
-    char        x_tag_center[128];
-    char        x_tag_wiper[128];
-    char        x_tag_wpr_c[128];
-    char        x_tag_ticks[128];
-    char        x_tag_outline[128];
-    char        x_tag_in[128];
-    char        x_tag_out[128];
-    char        x_tag_sel[128];
-}t_knob;
-
 t_widgetbehavior knob_widgetbehavior;
-static t_class *knob_class;
+static t_class *knob_class, *edit_proxy_class;
+
+typedef struct _edit_proxy{
+    t_object      p_obj;
+    t_symbol     *p_sym;
+    t_clock      *p_clock;
+    struct _knob *p_cnv;
+}t_edit_proxy;
+
+typedef struct _knob{
+    t_object        x_obj;
+    t_edit_proxy   *x_proxy;
+    t_glist        *x_glist;
+    int             x_size;
+    t_float         x_pos; // 0-1 normalized position
+    t_float         x_exp;
+    int             x_expmode;
+    t_float         x_init;
+    int             x_start_angle;
+    int             x_end_angle;
+    int             x_range;
+    int             x_offset;
+    int             x_ticks;
+    int             x_outline;
+    double          x_min;
+    double          x_max;
+    int             x_clicked;
+    int             x_sel;
+    int             x_shift;
+    int             x_edit;
+    t_float         x_fval;
+    t_symbol       *x_fg;
+    t_symbol       *x_bg;
+    t_symbol       *x_snd;
+    t_symbol       *x_snd_raw;
+//    int           x_rcv_set;
+    t_symbol       *x_rcv;
+    t_symbol       *x_rcv_raw;
+//    int           x_rcv_set;
+    int             x_circular;
+    int             x_arc;
+    int             x_zoom;
+    int             x_discrete;
+    char            x_tag_obj[128];
+    char            x_tag_circle[128];
+    char            x_tag_arc[128];
+    char            x_tag_center[128];
+    char            x_tag_wiper[128];
+    char            x_tag_wpr_c[128];
+    char            x_tag_ticks[128];
+    char            x_tag_outline[128];
+    char            x_tag_in[128];
+    char            x_tag_out[128];
+    char            x_tag_sel[128];
+}t_knob;
 
 // ---------------------- Helper functions ----------------------
 
@@ -224,13 +233,13 @@ static void knob_config_wcenter(t_knob *x, t_canvas *cv, int active){
 }
 
 static void knob_config_io(t_knob *x, t_canvas *cv){
-    int inlet = x->x_rcv == gensym("empty");
+    int inlet = x->x_rcv == gensym("empty") && x->x_edit;
     pdgui_vmess(0, "crs rs", cv, "itemconfigure", x->x_tag_in,
         "-state", inlet ? "normal" : "hidden");
-    int outlet = x->x_snd == gensym("empty");
+    int outlet = x->x_snd == gensym("empty") && x->x_edit;
     pdgui_vmess(0, "crs rs", cv, "itemconfigure", x->x_tag_out,
         "-state", outlet ? "normal" : "hidden");
-    int outline = (inlet || outlet) || x->x_outline;
+    int outline = x->x_edit || x->x_outline;
     pdgui_vmess(0, "crs rs", cv, "itemconfigure", x->x_tag_outline,
         "-state", outline ? "normal" : "hidden");
 }
@@ -471,11 +480,6 @@ static void knob_size(t_knob *x, t_floatarg f){
     }
 }
 
-/*static void knob_outline(t_knob *x, t_floatarg f){
-    x->x_outline = (int)(f != 0);
-    knob_config_io(x, glist_getcanvas(x->x_glist));
-}*/
-
 static void knob_arc(t_knob *x, t_floatarg f){
     int arc = f != 0;
     if(x->x_arc != arc){
@@ -586,6 +590,10 @@ static void knob_exp(t_knob *x, t_floatarg f){
         x->x_expmode = 2;
         x->x_exp = f;
     }
+}
+
+static void knob_outline(t_knob *x, t_floatarg f){
+    x->x_outline = (int)f;
 }
 
 static void knob_zoom(t_knob *x, t_floatarg f){
@@ -753,6 +761,50 @@ static int knob_click(t_gobj *z, struct _glist *glist, int xpix, int ypix, int s
     return(1);
 }
 
+static void edit_proxy_any(t_edit_proxy *p, t_symbol *s, int ac, t_atom *av){
+    int edit = ac = 0;
+    if(p->p_cnv){
+        if(s == gensym("editmode"))
+            edit = (int)(av->a_w.w_float);
+        else if(s == gensym("obj") || s == gensym("msg") || s == gensym("floatatom")
+        || s == gensym("symbolatom") || s == gensym("text") || s == gensym("bng")
+        || s == gensym("toggle") || s == gensym("numbox") || s == gensym("vslider")
+        || s == gensym("hslider") || s == gensym("vradio") || s == gensym("hradio")
+        || s == gensym("vumeter") || s == gensym("mycnv") || s == gensym("selectall")){
+            edit = 1;
+        }
+        else
+            return;
+        if(p->p_cnv->x_edit != edit){
+            p->p_cnv->x_edit = edit;
+            knob_config_io(p->p_cnv, glist_getcanvas(p->p_cnv->x_glist));
+        }
+    }
+}
+
+static void edit_proxy_free(t_edit_proxy *p){
+    pd_unbind(&p->p_obj.ob_pd, p->p_sym);
+    clock_free(p->p_clock);
+    pd_free(&p->p_obj.ob_pd);
+}
+
+static t_edit_proxy *edit_proxy_new(t_knob *x, t_symbol *s){
+    t_edit_proxy *p = (t_edit_proxy*)pd_new(edit_proxy_class);
+    p->p_cnv = x;
+    pd_bind(&p->p_obj.ob_pd, p->p_sym = s);
+    p->p_clock = clock_new(p, (t_method)edit_proxy_free);
+    return(p);
+}
+
+static void knob_free(t_knob *x){
+    if(x->x_clicked)
+        pd_unbind((t_pd *)x, gensym("#keyname"));
+    if(x->x_rcv != gensym("empty"))
+        pd_unbind(&x->x_obj.ob_pd, x->x_rcv);
+    x->x_proxy->p_cnv = NULL;
+    gfxstub_deleteforkey(x);
+}
+
 // ---------------------- new / free / setup ----------------------
 static void *knob_new(t_symbol *s, int ac, t_atom *av){
     s = NULL;
@@ -801,6 +853,14 @@ static void *knob_new(t_symbol *s, int ac, t_atom *av){
     x->x_end_angle = x->x_range/2 + x->x_offset;
     knob_range(x, min, max);
     x->x_fval = x->x_init = initvalue;
+
+    x->x_edit = x->x_glist->gl_edit;
+    
+    char buf[MAXPDSTRING];
+    snprintf(buf, MAXPDSTRING-1, ".x%lx", (unsigned long)x->x_glist);
+    buf[MAXPDSTRING-1] = 0;
+    x->x_proxy = edit_proxy_new(x, gensym(buf));
+    
     sprintf(x->x_tag_obj, "%pOBJ", x);
     sprintf(x->x_tag_circle, "%pCIRCLE", x);
     sprintf(x->x_tag_sel, "%pSEL", x);
@@ -816,14 +876,6 @@ static void *knob_new(t_symbol *s, int ac, t_atom *av){
         pd_bind(&x->x_obj.ob_pd, x->x_rcv);
     outlet_new(&x->x_obj, &s_float);
     return(x);
-}
-
-static void knob_free(t_knob *x){
-    if(x->x_clicked)
-        pd_unbind((t_pd *)x, gensym("#keyname"));
-    if(x->x_rcv != gensym("empty"))
-        pd_unbind(&x->x_obj.ob_pd, x->x_rcv);
-    gfxstub_deleteforkey(x);
 }
 
 void knob_setup(void){
@@ -844,12 +896,15 @@ void knob_setup(void){
     class_addmethod(knob_class, (t_method)knob_send, gensym("send"), A_DEFSYM, 0);
     class_addmethod(knob_class, (t_method)knob_receive, gensym("receive"), A_DEFSYM, 0);
     class_addmethod(knob_class, (t_method)knob_arc, gensym("arc"), A_DEFFLOAT, 0);
-//    class_addmethod(knob_class, (t_method)knob_outline, gensym("outline"), A_DEFFLOAT, 0);
     class_addmethod(knob_class, (t_method)knob_angle, gensym("angle"), A_FLOAT, A_DEFFLOAT, 0);
     class_addmethod(knob_class, (t_method)knob_ticks, gensym("ticks"), A_DEFFLOAT, 0);
     class_addmethod(knob_class, (t_method)knob_zoom, gensym("zoom"), A_CANT, 0);
     class_addmethod(knob_class, (t_method)knob_apply, gensym("dialog"), A_GIMME, 0);
     class_addmethod(knob_class, (t_method)knob_motion, gensym("motion"), A_FLOAT, A_FLOAT, 0);
+    class_addmethod(knob_class, (t_method)knob_outline, gensym("outline"), A_DEFFLOAT, 0);
+    edit_proxy_class = class_new(0, 0, 0, sizeof(t_edit_proxy), CLASS_NOINLET | CLASS_PD, 0);
+    class_addanything(edit_proxy_class, edit_proxy_any);
+//
     knob_widgetbehavior.w_getrectfn  = knob_getrect;
     knob_widgetbehavior.w_displacefn = knob_displace;
     knob_widgetbehavior.w_selectfn   = knob_select;
