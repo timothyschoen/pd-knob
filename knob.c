@@ -286,7 +286,28 @@ static void knob_draw_ticks(t_knob *x, t_glist *glist){
     int start = x->x_start_angle - 90.0;
 //    int odd  = x->x_ticks % 2;
 //    int mid  = x->x_ticks / 2 + 1;
-    for(int t = 1; t <= x->x_ticks; t++){
+    if(x->x_ticks == 1){
+        int width = (x->x_size / 40);
+        if(width < 1)
+            width = 1;
+        width *= 1.5;
+        float pos = knob_getpos(x, x->x_init) * x->x_range;
+        float w = pos + start; // tick angle
+        w *= M_PI/180.0; // in radians
+        float dx = r * cos(w), dy = r * sin(w);
+        int x1 = xc + (int)(dx);
+        int y1 = yc + (int)(dy);
+        int x2 = xc + (int)(dx * 0.65);
+        int y2 = yc + (int)(dy * 0.65);
+        char *tags_ticks[] = {x->x_tag_ticks, x->x_tag_obj};
+        pdgui_vmess(0, "crr iiii ri rs rS",
+            cv, "create", "line",
+            x1, y1, x2, y2,
+            "-width", width * z,
+            "-fill", x->x_fg->s_name,
+            "-tags", 2, tags_ticks);
+    }
+    else for(int t = 1; t <= x->x_ticks; t++){
 //         int thicker = (t == 1 || t == x->x_ticks || (odd && t == mid));
         int thicker = (t == 1 || t == x->x_ticks);
         int width = (x->x_size / 40);
@@ -462,9 +483,20 @@ static void knob_float(t_knob *x, t_floatarg f){
 
 static void knob_init(t_knob *x, t_symbol *s, int ac, t_atom *av){
     s = NULL;
-    if(ac == 1 && av->a_type == A_FLOAT)
-        knob_float(x, atom_getfloat(av));
-    x->x_init = x->x_fval;
+    if(!ac)
+        x->x_init = x->x_fval;
+    else if(ac == 1 && av->a_type == A_FLOAT){
+        float f = atom_getfloat(av);
+        x->x_init = f < x->x_min ? x->x_min : f > x->x_max ? x->x_max : f;
+        x->x_pos = knob_getpos(x, x->x_fval = x->x_init);
+    }
+    else
+        return;
+    if(glist_isvisible(x->x_glist) && gobj_shouldvis((t_gobj *)x, x->x_glist)){
+        knob_update(x, glist_getcanvas(x->x_glist));
+        if(x->x_ticks == 1)
+            knob_draw_ticks(x, glist_getcanvas(x->x_glist));
+    }
 }
 
 // set start/end angles
@@ -711,8 +743,7 @@ static void knob_apply(t_knob *x, t_symbol *s, int ac, t_atom *av){
     SETFLOAT(undo+13, x->x_arc);
     SETFLOAT(undo+14, x->x_range);
     SETFLOAT(undo+15, x->x_offset);
-    pd_undo_set_objectstate(x->x_glist, (t_pd*)x, gensym("dialog"),
-        16, undo, ac, av);
+    pd_undo_set_objectstate(x->x_glist, (t_pd*)x, gensym("dialog"), 16, undo, ac, av);
     knob_ticks(x, ticks);
     t_atom at[1];
     SETSYMBOL(at, bg);
@@ -725,8 +756,10 @@ static void knob_apply(t_knob *x, t_symbol *s, int ac, t_atom *av){
     knob_range(x, min, max);
     knob_send(x, snd);
     knob_receive(x, rcv);
-    if(x->x_init != init)
-        knob_float(x, x->x_init = x->x_fval = init);
+    if(x->x_init != init){
+        SETFLOAT(at, init);
+        knob_init(x, NULL, 1, at);
+    }
 }
 
 // --------------- click + motion stuff --------------------
