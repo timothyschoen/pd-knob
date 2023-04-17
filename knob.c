@@ -146,35 +146,6 @@ static t_float knob_getpos(t_knob *x, t_floatarg fval){
 
 // ---------------------- Configure / Update GUI ----------------------
 
-// Update Arc/Wiper according to position
-static void knob_update(t_knob *x, t_canvas *cv){
-    t_float pos = x->x_pos;
-    if(x->x_discrete){ // later just 1 tick case
-        t_float ticks = (x->x_ticks < 2 ? 2 : (float)x->x_ticks) -1;
-        pos = rint(pos * ticks) / ticks;
-    }
-    float start = (x->x_start_angle / 90.0 - 1) * HALF_PI;
-    float range = x->x_range / 180.0 * M_PI;
-    float angle = start + pos * range; // pos angle
-// configure arc
-    pdgui_vmess(0, "crs sf sf", cv, "itemconfigure", x->x_tag_bg_arc,
-        "-start", start * -180.0 / M_PI,
-        "-extent", range * -179.99 / M_PI);
-    start += (knob_getpos(x, x->x_init) * range);
-    pdgui_vmess(0, "crs sf sf", cv, "itemconfigure", x->x_tag_arc,
-        "-start", start * -180.0 / M_PI,
-        "-extent", (angle - start) * -179.99 / M_PI);
-// set wiper
-    int radius = (int)(x->x_size*x->x_zoom / 2.0);
-    int x0 = text_xpix(&x->x_obj, x->x_glist);
-    int y0 = text_ypix(&x->x_obj, x->x_glist);
-    int xc = x0 + radius; // center x coordinate
-    int yc = y0 + radius; // center y coordinate
-    int xp = xc + rint(radius * cos(angle)); // circle point x coordinate
-    int yp = yc + rint(radius * sin(angle)); // circle point x coordinate
-    pdgui_vmess(0, "crs iiii", cv, "coords", x->x_tag_wiper, xc, yc, xp, yp);
-}
-
 // configure colors
 static void knob_config_fg(t_knob *x, t_canvas *cv){
     pdgui_vmess(0, "crs rsrs", cv, "itemconfigure",  x->x_tag_arc,
@@ -241,20 +212,13 @@ static void knob_config_size(t_knob *x, t_canvas *cv){
         x1 + arcwidth, y1 + arcwidth, x2 - arcwidth, y2 - arcwidth);
 }
 
-// configure arc
-static void knob_config_arc(t_knob *x, t_canvas *cv){
-    pdgui_vmess(0, "crs rs", cv, "itemconfigure", x->x_tag_arc,
-        "-state", x->x_arc ? "normal" : "hidden");
-    pdgui_vmess(0, "crs rs", cv, "itemconfigure", x->x_tag_bg_arc,
-        "-state", x->x_arc ? "normal" : "hidden");
-}
-
 // configure wiper center
 static void knob_config_wcenter(t_knob *x, t_canvas *cv, int active){
     pdgui_vmess(0, "crs rs", cv, "itemconfigure", x->x_tag_wpr_c,
                 "-state", active ? "normal" : "hidden");
 }
 
+// configure inlet outlet and outline
 static void knob_config_io(t_knob *x, t_canvas *cv){
     int inlet = x->x_rcv == gensym("empty") && x->x_edit;
     pdgui_vmess(0, "crs rs", cv, "itemconfigure", x->x_tag_in,
@@ -265,6 +229,44 @@ static void knob_config_io(t_knob *x, t_canvas *cv){
     int outline = x->x_edit || x->x_outline;
     pdgui_vmess(0, "crs rs", cv, "itemconfigure", x->x_tag_outline,
         "-state", outline ? "normal" : "hidden");
+}
+
+// configure arc
+static void knob_config_arc(t_knob *x, t_canvas *cv){
+    pdgui_vmess(0, "crs rs", cv, "itemconfigure", x->x_tag_arc,
+        "-state", x->x_arc && x->x_fval != x->x_init ? "normal" : "hidden");
+    pdgui_vmess(0, "crs rs", cv, "itemconfigure", x->x_tag_bg_arc,
+        "-state", x->x_arc ? "normal" : "hidden");
+}
+
+// Update Arc/Wiper according to position
+static void knob_update(t_knob *x, t_canvas *cv){
+    t_float pos = x->x_pos;
+    if(x->x_discrete){ // later just 1 tick case
+        t_float ticks = (x->x_ticks < 2 ? 2 : (float)x->x_ticks) -1;
+        pos = rint(pos * ticks) / ticks;
+    }
+    float start = (x->x_start_angle / 90.0 - 1) * HALF_PI;
+    float range = x->x_range / 180.0 * M_PI;
+    float angle = start + pos * range; // pos angle
+// configure arc
+    knob_config_arc(x, cv);
+    pdgui_vmess(0, "crs sf sf", cv, "itemconfigure", x->x_tag_bg_arc,
+        "-start", start * -180.0 / M_PI,
+        "-extent", range * -179.99 / M_PI);
+    start += (knob_getpos(x, x->x_init) * range);
+    pdgui_vmess(0, "crs sf sf", cv, "itemconfigure", x->x_tag_arc,
+        "-start", start * -180.0 / M_PI,
+        "-extent", (angle - start) * -179.99 / M_PI);
+// set wiper
+    int radius = (int)(x->x_size*x->x_zoom / 2.0);
+    int x0 = text_xpix(&x->x_obj, x->x_glist);
+    int y0 = text_ypix(&x->x_obj, x->x_glist);
+    int xc = x0 + radius; // center x coordinate
+    int yc = y0 + radius; // center y coordinate
+    int xp = xc + rint(radius * cos(angle)); // circle point x coordinate
+    int yp = yc + rint(radius * sin(angle)); // circle point x coordinate
+    pdgui_vmess(0, "crs iiii", cv, "coords", x->x_tag_wiper, xc, yc, xp, yp);
 }
 
 //---------------------- DRAW STUFF ----------------------------//
@@ -1115,14 +1117,12 @@ static void *knob_new(t_symbol *s, int ac, t_atom *av){
     x->x_end_angle = x->x_range/2 + x->x_offset;
     knob_range(x, min, max);
     x->x_fval = x->x_init = initvalue;
-
+    x->x_pos = knob_getpos(x, x->x_fval);
     x->x_edit = x->x_glist->gl_edit;
-    
     char buf[MAXPDSTRING];
     snprintf(buf, MAXPDSTRING-1, ".x%lx", (unsigned long)x->x_glist);
     buf[MAXPDSTRING-1] = 0;
     x->x_proxy = edit_proxy_new(x, gensym(buf));
-    
     sprintf(x->x_tag_obj, "%pOBJ", x);
     sprintf(x->x_tag_circle, "%pCIRCLE", x);
     sprintf(x->x_tag_sel, "%pSEL", x);
