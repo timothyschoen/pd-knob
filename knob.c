@@ -679,6 +679,7 @@ static void knob_exp(t_knob *x, t_floatarg f){
         x->x_expmode = 2; // exp
         x->x_exp = f;
     }
+    post("x->x_exp = (%f) x->x_expmode (%f)", x->x_exp, x->x_expmode);
 }
 
 static void knob_outline(t_knob *x, t_floatarg f){
@@ -725,7 +726,7 @@ static void knob_apply(t_knob *x, t_symbol *s, int ac, t_atom *av){
     t_symbol* snd = atom_getsymbolarg(4, ac, av);
     t_symbol* rcv = atom_getsymbolarg(5, ac, av);
     x->x_outline = atom_getintarg(6, ac, av);
-    x->x_exp = atom_getfloatarg(7, ac, av);
+    float exp = atom_getfloatarg(7, ac, av);
     t_symbol *bg = atom_getsymbolarg(8, ac, av);
     t_symbol *fg = atom_getsymbolarg(9, ac, av);
     x->x_circular = atom_getintarg(10, ac, av);
@@ -752,6 +753,7 @@ static void knob_apply(t_knob *x, t_symbol *s, int ac, t_atom *av){
     SETFLOAT(undo+14, x->x_range);
     SETFLOAT(undo+15, x->x_offset);
     pd_undo_set_objectstate(x->x_glist, (t_pd*)x, gensym("dialog"), 16, undo, ac, av);
+    knob_exp(x, exp);
     knob_ticks(x, ticks);
     t_atom at[1];
     SETSYMBOL(at, bg);
@@ -904,8 +906,7 @@ static void *knob_new(t_symbol *s, int ac, t_atom *av){
     s = NULL;
     t_knob *x = (t_knob *)pd_new(knob_class);
     float initvalue = 0, exp = 1, min = 0.0, max = 127.0;
-    t_symbol *snd = gensym("empty");
-    t_symbol *rcv = gensym("empty");
+    t_symbol *snd = gensym("empty"), *rcv = gensym("empty");
     int size = 50, circular = 0, ticks = 0, discrete = 0;
     int arc = 1, angle = 360, offset = 0;
     x->x_bg = gensym("#dfdfdf"), x->x_mg = gensym("#afafaf"), x->x_fg = gensym("black");
