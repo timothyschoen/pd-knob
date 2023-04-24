@@ -1003,10 +1003,10 @@ static void *knob_new(t_symbol *s, int ac, t_atom *av){
     float initvalue = 0.0, exp = 0.0, min = 0.0, max = 127.0;
     t_symbol *snd = gensym("empty"), *rcv = gensym("empty");
     int size = 50, circular = 0, ticks = 0, discrete = 0;
-    int arc = 1, angle = 360, offset = 0;
+    int arc = 1, angle = 320, offset = 0;
     x->x_bg = gensym("#dfdfdf"), x->x_mg = gensym("#afafaf"), x->x_fg = gensym("black");
     x->x_clicked = x->x_log = 0;
-    x->x_outline = 1;
+    x->x_outline = 0;
     x->x_glist = (t_glist *)canvas_getcurrent();
     x->x_zoom = x->x_glist->gl_zoom;
     x->x_flag = 0;
