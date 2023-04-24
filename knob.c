@@ -61,9 +61,11 @@ typedef struct _knob{
     t_symbol       *x_bg;
     t_symbol       *x_snd;
     t_symbol       *x_snd_raw;
-    int             x_r_flag;
     int             x_flag;
+    int             x_r_flag;
+    int             x_s_flag;
     int             x_rcv_set;
+    int             x_snd_set;
     t_symbol       *x_rcv;
     t_symbol       *x_rcv_raw;
     int             x_circular;
@@ -433,6 +435,70 @@ static void knob_delete(t_gobj *z, t_glist *glist){
     canvas_deletelinesfor(glist, (t_text *)z);
 }
 
+static void knob_get_snd(t_knob* x){
+    if(!x->x_snd_set){ // no send set, search arguments
+        t_binbuf *bb = x->x_obj.te_binbuf;
+        int n_args = binbuf_getnatom(bb) - 1; // number of arguments
+        char buf[128];
+        if(n_args > 0){ // we have arguments, let's search them
+            if(x->x_flag){ // arguments are flags actually
+                if(x->x_s_flag){ // we got a send flag, let's get it
+                    for(int i = 0;  i <= n_args; i++){
+                        atom_string(binbuf_getvec(bb) + i, buf, 128);
+                        if(gensym(buf) == gensym("-send")){
+                            i++;
+                            atom_string(binbuf_getvec(bb) + i, buf, 128);
+                            x->x_snd_raw = gensym(buf);
+                            break;
+                        }
+                    }
+                }
+            }
+            else{ // we got no flags, let's search for argument
+                int arg_n = 5; // send argument number
+                if(n_args >= arg_n){ // we have it, get it
+                    atom_string(binbuf_getvec(bb) + arg_n, buf, 128);
+                    x->x_snd_raw = gensym(buf);
+                }
+            }
+        }
+    }
+    if(x->x_snd_raw == &s_)
+        x->x_snd_raw = gensym("empty");
+}
+
+static void knob_get_rcv(t_knob* x){
+    if(!x->x_rcv_set){ // no receive set, search arguments
+        t_binbuf *bb = x->x_obj.te_binbuf;
+        int n_args = binbuf_getnatom(bb) - 1; // number of arguments
+        char buf[128];
+        if(n_args > 0){ // we have arguments, let's search them
+            if(x->x_flag){ // arguments are flags actually
+                if(x->x_r_flag){ // we got a receive flag, let's get it
+                    for(int i = 0;  i <= n_args; i++){
+                        atom_string(binbuf_getvec(bb) + i, buf, 128);
+                        if(gensym(buf) == gensym("-receive")){
+                            i++;
+                            atom_string(binbuf_getvec(bb) + i, buf, 128);
+                            x->x_rcv_raw = gensym(buf);
+                            break;
+                        }
+                    }
+                }
+            }
+            else{ // we got no flags, let's search for argument
+                int arg_n = 6; // receive argument number
+                if(n_args >= arg_n){ // we have it, get it
+                    atom_string(binbuf_getvec(bb) + arg_n, buf, 128);
+                    x->x_rcv_raw = gensym(buf);
+                }
+            }
+        }
+    }
+    if(x->x_rcv_raw == &s_)
+        x->x_rcv_raw = gensym("empty");
+}
+
 static void knob_save(t_gobj *z, t_binbuf *b){
     t_knob *x = (t_knob *)z;
     binbuf_addv(b, "ssiis",
@@ -441,6 +507,8 @@ static void knob_save(t_gobj *z, t_binbuf *b){
         (t_int)x->x_obj.te_xpix,
         (t_int)x->x_obj.te_ypix,
         atom_getsymbol(binbuf_getvec(x->x_obj.te_binbuf)));
+    knob_get_snd(x);
+    knob_get_rcv(x);
     binbuf_addv(b, "iffffsssssiiiiiii", // 17 args
         x->x_size, // 01: i SIZE
         (float)x->x_min, // 02: f min
@@ -636,6 +704,7 @@ static void knob_send(t_knob *x, t_symbol *s){
         s = gensym("empty");
     t_symbol *snd = s == gensym("empty") ? &s_ : canvas_realizedollar(x->x_glist, s);
     if(snd != x->x_snd){
+        x->x_snd_set = 1;
         x->x_snd_raw = s;
         x->x_snd = snd;
         knob_config_io(x, glist_getcanvas(x->x_glist));
@@ -647,6 +716,7 @@ static void knob_receive(t_knob *x, t_symbol *s){
         s = gensym("empty");
     t_symbol *rcv = s == gensym("empty") ? &s_ : canvas_realizedollar(x->x_glist, s);
     if(rcv != x->x_rcv){
+        x->x_rcv_set = 1;
         t_symbol *old_rcv = x->x_rcv;
         x->x_rcv_raw = s;
         x->x_rcv = rcv;
@@ -931,6 +1001,9 @@ static void *knob_new(t_symbol *s, int ac, t_atom *av){
     x->x_outline = 1;
     x->x_glist = (t_glist *)canvas_getcurrent();
     x->x_zoom = x->x_glist->gl_zoom;
+    x->x_flag = 0;
+    x->x_snd_set = x->x_s_flag = 0;
+    x->x_rcv_set = x->x_r_flag = 0;
     if(ac){
         if(av->a_type == A_FLOAT){
             size = atom_getintarg(0, ac, av); // 01: i SIZE
