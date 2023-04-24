@@ -720,7 +720,7 @@ static void knob_receive(t_knob *x, t_symbol *s){
         t_symbol *old_rcv = x->x_rcv;
         x->x_rcv_raw = s;
         x->x_rcv = rcv;
-        if(old_rcv != &s_)
+        if(old_rcv != &s_ && old_rcv != gensym("empty"))
             pd_unbind(&x->x_obj.ob_pd, old_rcv);
         if(x->x_rcv != &s_)
             pd_bind(&x->x_obj.ob_pd, x->x_rcv);
