@@ -1,4 +1,5 @@
-// based on the knob proposal for vanilla
+// by Porres and Tim Schoen
+// based on the knob proposal for vanilla by Ant1, Porres and others
 
 #include "m_pd.h"
 #include "g_canvas.h"
@@ -444,7 +445,7 @@ static void knob_save(t_gobj *z, t_binbuf *b){
         x->x_size, // 01: i SIZE
         (float)x->x_min, // 02: f min
         (float)x->x_max, // 03: f max
-        x->x_exp, // 04: f exp
+        x->x_log ? 0 : x->x_exp, // 04: f exp
         x->x_outline, // 05: i outline
         x->x_snd_raw, // 06: s snd
         x->x_rcv_raw, // 07: s rcv
@@ -669,12 +670,10 @@ static void knob_range(t_knob *x, t_floatarg f1, t_floatarg f2){
 
 static void knob_log(t_knob *x, t_floatarg f){
     x->x_log = (f != 0);
-    if(x->x_log){
+    if(x->x_log)
         x->x_expmode = 1; // log
-        x->x_exp == 0;
-    }
     else{
-        if(x->x_exp == 1);
+        if(x->x_exp == 1)
             x->x_expmode = 0; // lin
         else
             x->x_expmode = 2; // exp
@@ -685,12 +684,10 @@ static void knob_exp(t_knob *x, t_floatarg f){
     x->x_exp = f;
     if(x->x_exp == 0 || x->x_exp == -1)
         x->x_exp = 1;
-    if(x->x_log){
+    if(x->x_log)
         x->x_expmode = 1; // log
-        x->x_exp == 0;
-    }
     else{
-        if(x->x_exp == 1);
+        if(x->x_exp == 1)
             x->x_expmode = 0; // lin
         else
             x->x_expmode = 2; // exp
@@ -758,7 +755,7 @@ static void knob_apply(t_knob *x, t_symbol *s, int ac, t_atom *av){
     SETSYMBOL(undo+4, x->x_snd);
     SETSYMBOL(undo+5, x->x_rcv);
     SETFLOAT(undo+6, x->x_outline);
-    SETFLOAT(undo+7, x->x_exp);
+    SETFLOAT(undo+7, x->x_log ? 0 : x->x_exp);
     SETSYMBOL(undo+8, x->x_bg);
     SETSYMBOL(undo+9, x->x_fg);
     SETFLOAT(undo+10, x->x_circular);
@@ -768,7 +765,11 @@ static void knob_apply(t_knob *x, t_symbol *s, int ac, t_atom *av){
     SETFLOAT(undo+14, x->x_range);
     SETFLOAT(undo+15, x->x_offset);
     pd_undo_set_objectstate(x->x_glist, (t_pd*)x, gensym("dialog"), 16, undo, ac, av);
-    knob_exp(x, exp);
+    x->x_exp = 1;
+    if(!exp)
+        knob_log(x, 1);
+    else
+        knob_exp(x, exp);
     knob_ticks(x, ticks);
     t_atom at[1];
     SETSYMBOL(at, bg);
@@ -925,7 +926,7 @@ static void *knob_new(t_symbol *s, int ac, t_atom *av){
     int size = 50, circular = 0, ticks = 0, discrete = 0;
     int arc = 1, angle = 360, offset = 0;
     x->x_bg = gensym("#dfdfdf"), x->x_mg = gensym("#afafaf"), x->x_fg = gensym("black");
-    x->x_clicked = 0;
+    x->x_clicked = x->x_log = 0;
     x->x_outline = 1;
     x->x_glist = (t_glist *)canvas_getcurrent();
     x->x_zoom = x->x_glist->gl_zoom;
@@ -1027,6 +1028,19 @@ static void *knob_new(t_symbol *s, int ac, t_atom *av){
                     else
                         goto errstate;
                 }
+                else if(sym == gensym("-mgcolor")){
+                    if(ac >= 2){
+                        x->x_flag = 1, av++, ac--;
+                        if(av->a_type == A_SYMBOL){
+                            x->x_mg = atom_getsymbol(av);
+                            av++, ac--;
+                        }
+                        else
+                            goto errstate;
+                    }
+                    else
+                        goto errstate;
+                }
                 else if(sym == gensym("-fgcolor")){
                     if(ac >= 2){
                         x->x_flag = 1, av++, ac--;
@@ -1053,14 +1067,13 @@ static void *knob_new(t_symbol *s, int ac, t_atom *av){
                     else
                         goto errstate;
                 }
+                else if(sym == gensym("-log")){
+                    x->x_flag = 1, av++, ac--;
+                    exp = 0;
+                }
                 else if(sym == gensym("-circular")){
-                    if(ac >= 1){
-                        x->x_flag = 1, av++, ac--;
-                        if(av->a_type == A_FLOAT)
-                            circular = 1;
-                    }
-                    else
-                        goto errstate;
+                    x->x_flag = 1, av++, ac--;
+                    circular = 1;
                 }
                 else if(sym == gensym("-ticks")){
                     if(ac >= 2){
@@ -1087,8 +1100,7 @@ static void *knob_new(t_symbol *s, int ac, t_atom *av){
                 else if(sym == gensym("-arc")){
                     if(ac >= 1){
                         x->x_flag = 1, av++, ac--;
-                        if(av->a_type == A_FLOAT)
-                            arc = 1;
+                        arc = 1;
                     }
                     else
                         goto errstate;
@@ -1128,7 +1140,11 @@ static void *knob_new(t_symbol *s, int ac, t_atom *av){
     x->x_rcv = canvas_realizedollar(x->x_glist, x->x_rcv_raw = rcv);
     x->x_size = size < MIN_SIZE ? MIN_SIZE : size;
     knob_range(x, min, max);
-    knob_exp(x, exp);
+    x->x_exp = 1;
+    if(!exp)
+        knob_log(x, 1);
+    else
+        knob_exp(x, exp);
     x->x_circular = circular;
     x->x_ticks = ticks < 0 ? 0 : ticks;
     x->x_discrete = discrete;
