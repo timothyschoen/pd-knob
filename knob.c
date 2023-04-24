@@ -40,6 +40,7 @@ typedef struct _knob{
     t_float         x_pos; // 0-1 normalized position
     t_float         x_exp;
     int             x_expmode;
+    int             x_log;
     t_float         x_init;
     int             x_start_angle;
     int             x_end_angle;
@@ -92,7 +93,7 @@ static t_float knob_getfval(t_knob *x){
         t_float ticks = (x->x_ticks < 2 ? 2 : (float)x->x_ticks) - 1;
         pos = rint(pos * ticks) / ticks;
     }
-    if(x->x_expmode == 1){ // log
+    if(x->x_log == 1){ // log
         if((x->x_min <= 0 && x->x_max >= 0) || (x->x_min >= 0 && x->x_max <= 0)){
             pd_error(x, "[knob]: range can't contain '0' in log mode");
             fval = x->x_min;
@@ -101,7 +102,7 @@ static t_float knob_getfval(t_knob *x){
             fval = exp(pos * log(x->x_max / x->x_min)) * x->x_min;
     }
     else{
-        if(x->x_expmode == 2){
+        if(x->x_exp != 1){
             if(x->x_exp > 0)
                 pos = pow(pos, x->x_exp);
             else
@@ -117,7 +118,7 @@ static t_float knob_getfval(t_knob *x){
 // get position from value
 static t_float knob_getpos(t_knob *x, t_floatarg fval){
     double pos;
-    if(x->x_expmode == 1){ // log
+    if(x->x_log == 1){ // log
         if((x->x_min <= 0 && x->x_max >= 0) || (x->x_min >= 0 && x->x_max <= 0)){
             pd_error(x, "[knob]: range cannot contain '0' in log mode");
             pos = 0;
@@ -127,7 +128,7 @@ static t_float knob_getpos(t_knob *x, t_floatarg fval){
     }
     else{
         pos = (fval - x->x_min) / (x->x_max - x->x_min);
-        if(x->x_expmode == 2){
+        if(x->x_exp != 1){
             if(x->x_exp > 0)
                 pos = pow(pos, 1.0/x->x_exp);
             else
@@ -666,20 +667,30 @@ static void knob_range(t_knob *x, t_floatarg f1, t_floatarg f2){
     }
 }
 
-static void knob_exp(t_knob *x, t_floatarg f){
-    if(fabs(f) == 1){
-        x->x_expmode = 0; // linear
-        x->x_exp = 1;
-    }
-    else if(f == 0){
+static void knob_log(t_knob *x, t_floatarg f){
+    x->x_log = f != 0;
+    if(x->x_log)
         x->x_expmode = 1; // log
-        x->x_exp = 0;
-    }
     else{
-        x->x_expmode = 2; // exp
-        x->x_exp = f;
+        if(x->x_exp == 1);
+            x->x_expmode = 0; // lin
+        else
+            x->x_expmode = 2; // exp
     }
-    post("x->x_exp = (%f) x->x_expmode (%f)", x->x_exp, x->x_expmode);
+}
+
+static void knob_exp(t_knob *x, t_floatarg f){
+    x->x_exp = f;
+    if(x->x_exp == 0 || x->x_exp == -1)
+        x->x_exp = 1;
+    if(x->x_log)
+        x->x_expmode = 1; // log
+    else{
+        if(x->x_exp == 1);
+            x->x_expmode = 0; // lin
+        else
+            x->x_expmode = 2; // exp
+    }
 }
 
 static void knob_outline(t_knob *x, t_floatarg f){
@@ -1162,6 +1173,7 @@ void knob_setup(void){
     class_addmethod(knob_class, (t_method)knob_circular, gensym("circular"), A_FLOAT, 0);
     class_addmethod(knob_class, (t_method)knob_range, gensym("range"), A_FLOAT, A_FLOAT, 0);
     class_addmethod(knob_class, (t_method)knob_exp, gensym("exp"), A_FLOAT, 0);
+    class_addmethod(knob_class, (t_method)knob_log, gensym("log"), A_FLOAT, 0);
     class_addmethod(knob_class, (t_method)knob_discrete, gensym("discrete"), A_FLOAT, 0);
     class_addmethod(knob_class, (t_method)knob_bgcolor, gensym("bgcolor"), A_GIMME, 0);
     class_addmethod(knob_class, (t_method)knob_mgcolor, gensym("mgcolor"), A_GIMME, 0);
