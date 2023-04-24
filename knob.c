@@ -455,7 +455,7 @@ static void knob_get_snd(t_knob* x){
                 }
             }
             else{ // we got no flags, let's search for argument
-                int arg_n = 5; // send argument number
+                int arg_n = 6; // send argument number
                 if(n_args >= arg_n){ // we have it, get it
                     atom_string(binbuf_getvec(bb) + arg_n, buf, 128);
                     x->x_snd_raw = gensym(buf);
@@ -487,7 +487,7 @@ static void knob_get_rcv(t_knob* x){
                 }
             }
             else{ // we got no flags, let's search for argument
-                int arg_n = 6; // receive argument number
+                int arg_n = 7; // receive argument number
                 if(n_args >= arg_n){ // we have it, get it
                     atom_string(binbuf_getvec(bb) + arg_n, buf, 128);
                     x->x_rcv_raw = gensym(buf);
@@ -737,6 +737,14 @@ static void knob_range(t_knob *x, t_floatarg f1, t_floatarg f2){
         x->x_min = (double)f1;
         x->x_max = (double)f2;
     }
+    if(x->x_fval < x->x_min)
+        x->x_fval = x->x_min;
+    if(x->x_fval > x->x_max)
+        x->x_fval = x->x_max;
+    if(x->x_init < x->x_min)
+        x->x_init = x->x_min;
+    if(x->x_init > x->x_max)
+        x->x_init = x->x_max;
 }
 
 static void knob_log(t_knob *x, t_floatarg f){
@@ -1022,7 +1030,7 @@ static void *knob_new(t_symbol *s, int ac, t_atom *av){
             discrete = atom_getintarg(13, ac, av); // 14: i discrete
             arc = atom_getintarg(14, ac, av); // 15: i arc
             angle = atom_getintarg(15, ac, av); // 16: i range
-            offset = atom_getintarg(15, ac, av); // 17: i offset
+            offset = atom_getintarg(16, ac, av); // 17: i offset
         }
         else{
             while(ac){
@@ -1214,7 +1222,6 @@ static void *knob_new(t_symbol *s, int ac, t_atom *av){
     x->x_snd = canvas_realizedollar(x->x_glist, x->x_snd_raw = snd);
     x->x_rcv = canvas_realizedollar(x->x_glist, x->x_rcv_raw = rcv);
     x->x_size = size < MIN_SIZE ? MIN_SIZE : size;
-    knob_range(x, min, max);
     x->x_exp = 0;
     if(exp == 1)
         knob_log(x, 1);
@@ -1229,6 +1236,7 @@ static void *knob_new(t_symbol *s, int ac, t_atom *av){
     x->x_start_angle = -(x->x_range/2) + x->x_offset;
     x->x_end_angle = x->x_range/2 + x->x_offset;
     x->x_fval = x->x_init = initvalue;
+    knob_range(x, min, max);
     x->x_pos = knob_getpos(x, x->x_fval);
     x->x_edit = x->x_glist->gl_edit;
     char buf[MAXPDSTRING];
