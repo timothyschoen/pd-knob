@@ -103,7 +103,7 @@ static t_float knob_getfval(t_knob *x){
             fval = exp(pos * log(x->x_max / x->x_min)) * x->x_min;
     }
     else{
-        if(x->x_exp != 1){
+        if(x->x_exp != 0){
             if(x->x_exp > 0)
                 pos = pow(pos, x->x_exp);
             else
@@ -129,7 +129,7 @@ static t_float knob_getpos(t_knob *x, t_floatarg fval){
     }
     else{
         pos = (fval - x->x_min) / (x->x_max - x->x_min);
-        if(x->x_exp != 1){
+        if(x->x_exp != 0){
             if(x->x_exp > 0)
                 pos = pow(pos, 1.0/x->x_exp);
             else
@@ -441,23 +441,24 @@ static void knob_save(t_gobj *z, t_binbuf *b){
         (t_int)x->x_obj.te_xpix,
         (t_int)x->x_obj.te_ypix,
         atom_getsymbol(binbuf_getvec(x->x_obj.te_binbuf)));
-    binbuf_addv(b, "ifffissssfiiiiii", // 16 args
+    binbuf_addv(b, "iffffsssssiiiiiii", // 17 args
         x->x_size, // 01: i SIZE
         (float)x->x_min, // 02: f min
         (float)x->x_max, // 03: f max
-        x->x_log ? 0 : x->x_exp, // 04: f exp
-        x->x_outline, // 05: i outline
+        x->x_log ? 1 : x->x_exp, // 04: f exp
+        x->x_init, // 05: f init
         x->x_snd_raw, // 06: s snd
         x->x_rcv_raw, // 07: s rcv
         x->x_bg, // 08: s bgcolor
-        x->x_fg, // 09: s fgcolor
-        x->x_init, // 10: f init
-        x->x_circular, // 11: i circular
-        x->x_ticks, // 12: i ticks
-        x->x_discrete, // 13: i discrete
-        x->x_arc, // 14: i arc
-        x->x_range, // 15: i range
-        x->x_offset); // 16: i offset
+        x->x_mg, // 09: s mgcolor
+        x->x_fg, // 10: s fgcolor
+        x->x_outline, // 11: i outline
+        x->x_circular, // 12: i circular
+        x->x_ticks, // 13: i ticks
+        x->x_discrete, // 14: i discrete
+        x->x_arc, // 15: i arc
+        x->x_range, // 16: i range
+        x->x_offset); // 17: i offset
     binbuf_addv(b, ";");
 }
 
@@ -673,7 +674,7 @@ static void knob_log(t_knob *x, t_floatarg f){
     if(x->x_log)
         x->x_expmode = 1; // log
     else{
-        if(x->x_exp == 1)
+        if(x->x_exp == 0)
             x->x_expmode = 0; // lin
         else
             x->x_expmode = 2; // exp
@@ -682,12 +683,12 @@ static void knob_log(t_knob *x, t_floatarg f){
 
 static void knob_exp(t_knob *x, t_floatarg f){
     x->x_exp = f;
-    if(x->x_exp == 0 || x->x_exp == -1)
-        x->x_exp = 1;
+    if(fabs(x->x_exp) == 1)
+        x->x_exp = 0; // lin
     if(x->x_log)
         x->x_expmode = 1; // log
     else{
-        if(x->x_exp == 1)
+        if(x->x_exp == 0)
             x->x_expmode = 0; // lin
         else
             x->x_expmode = 2; // exp
@@ -755,7 +756,7 @@ static void knob_apply(t_knob *x, t_symbol *s, int ac, t_atom *av){
     SETSYMBOL(undo+4, x->x_snd);
     SETSYMBOL(undo+5, x->x_rcv);
     SETFLOAT(undo+6, x->x_outline);
-    SETFLOAT(undo+7, x->x_log ? 0 : x->x_exp);
+    SETFLOAT(undo+7, x->x_log ? 1 : x->x_exp);
     SETSYMBOL(undo+8, x->x_bg);
     SETSYMBOL(undo+9, x->x_fg);
     SETFLOAT(undo+10, x->x_circular);
@@ -921,7 +922,7 @@ static void knob_free(t_knob *x){
 static void *knob_new(t_symbol *s, int ac, t_atom *av){
     s = NULL;
     t_knob *x = (t_knob *)pd_new(knob_class);
-    float initvalue = 0, exp = 1, min = 0.0, max = 127.0;
+    float initvalue = 0.0, exp = 0.0, min = 0.0, max = 127.0;
     t_symbol *snd = gensym("empty"), *rcv = gensym("empty");
     int size = 50, circular = 0, ticks = 0, discrete = 0;
     int arc = 1, angle = 360, offset = 0;
@@ -932,22 +933,23 @@ static void *knob_new(t_symbol *s, int ac, t_atom *av){
     x->x_zoom = x->x_glist->gl_zoom;
     if(ac){
         if(av->a_type == A_FLOAT){
-            size = atom_getintarg(0, ac, av);
-            min = atom_getfloatarg(1, ac, av);
-            max = atom_getfloatarg(2, ac, av);
-            exp = atom_getfloatarg(3, ac, av);
-            x->x_outline = atom_getintarg(4, ac, av);
-            snd = atom_getsymbolarg(5, ac, av);
-            rcv = atom_getsymbolarg(6, ac, av);
-            x->x_bg = atom_getsymbolarg(7, ac, av);
-            x->x_fg = atom_getsymbolarg(8, ac, av);
-            initvalue = atom_getfloatarg(9, ac, av);
-            circular = atom_getintarg(10, ac, av);
-            ticks = atom_getintarg(11, ac, av);
-            discrete = atom_getintarg(12, ac, av);
-            arc = atom_getintarg(13, ac, av);
-            angle = atom_getintarg(14, ac, av);
-            offset = atom_getintarg(15, ac, av);
+            size = atom_getintarg(0, ac, av); // 01: i SIZE
+            min = atom_getfloatarg(1, ac, av); // 02: f min
+            max = atom_getfloatarg(2, ac, av); // 03: f max
+            exp = atom_getfloatarg(3, ac, av); // 04: f exp
+            initvalue = atom_getfloatarg(4, ac, av); // 05: f init
+            snd = atom_getsymbolarg(5, ac, av); // 06: s snd
+            rcv = atom_getsymbolarg(6, ac, av); // 07: s rcv
+            x->x_bg = atom_getsymbolarg(7, ac, av); // 08: s bgcolor
+            x->x_mg = atom_getsymbolarg(8, ac, av); // 09: s mgcolor
+            x->x_fg = atom_getsymbolarg(9, ac, av); // 10: s fgcolor
+            x->x_outline = atom_getintarg(10, ac, av); // 11: i outline
+            circular = atom_getintarg(11, ac, av); // 12: i circular
+            ticks = atom_getintarg(12, ac, av); // 13: i ticks
+            discrete = atom_getintarg(13, ac, av); // 14: i discrete
+            arc = atom_getintarg(14, ac, av); // 15: i arc
+            angle = atom_getintarg(15, ac, av); // 16: i range
+            offset = atom_getintarg(15, ac, av); // 17: i offset
         }
         else{
             while(ac){
@@ -1069,7 +1071,7 @@ static void *knob_new(t_symbol *s, int ac, t_atom *av){
                 }
                 else if(sym == gensym("-log")){
                     x->x_flag = 1, av++, ac--;
-                    exp = 0;
+                    exp = 1;
                 }
                 else if(sym == gensym("-circular")){
                     x->x_flag = 1, av++, ac--;
@@ -1140,8 +1142,8 @@ static void *knob_new(t_symbol *s, int ac, t_atom *av){
     x->x_rcv = canvas_realizedollar(x->x_glist, x->x_rcv_raw = rcv);
     x->x_size = size < MIN_SIZE ? MIN_SIZE : size;
     knob_range(x, min, max);
-    x->x_exp = 1;
-    if(!exp)
+    x->x_exp = 0;
+    if(exp == 1)
         knob_log(x, 1);
     else
         knob_exp(x, exp);
