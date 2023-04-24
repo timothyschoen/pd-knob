@@ -84,8 +84,8 @@ sys_gui("\n"
 "    set labelname empty\n"
 "\n"
 //  Set end and receive if not empty
-"    if {$::dialog_knob::var_snd($vid) ne \"\"} {set sendname $::dialog_knob::var_snd($vid)}\n"
-"    if {$::dialog_knob::var_rcv($vid) ne \"\"} {set receivename $::dialog_knob::var_rcv($vid)}\n"
+"    if {$::dialog_knob::var_snd($vid) == \"empty\"} {set $sendname [format \"\"]} else {set $sendname [string map {{\\ } \" \"} $::dialog_knob::var_snd($vid)]}\n"
+"    if {$::dialog_knob::var_rcv($vid) == \"empty\"} {set $receivename [format \"\"]} else {set $receivename [string map {{\\ } \" \"} $::dialog_knob::var_rcv($vid)]}\n"
 "\n"
 //  Clip number if ticks
 "    set ::dialog_knob::var_ticks($vid) [::dialog_knob::clip $::dialog_knob::var_ticks($vid) 0 360]\n"
