@@ -668,9 +668,11 @@ static void knob_range(t_knob *x, t_floatarg f1, t_floatarg f2){
 }
 
 static void knob_log(t_knob *x, t_floatarg f){
-    x->x_log = f != 0;
-    if(x->x_log)
+    x->x_log = (f != 0);
+    if(x->x_log){
         x->x_expmode = 1; // log
+        x->x_exp == 0;
+    }
     else{
         if(x->x_exp == 1);
             x->x_expmode = 0; // lin
@@ -683,8 +685,10 @@ static void knob_exp(t_knob *x, t_floatarg f){
     x->x_exp = f;
     if(x->x_exp == 0 || x->x_exp == -1)
         x->x_exp = 1;
-    if(x->x_log)
+    if(x->x_log){
         x->x_expmode = 1; // log
+        x->x_exp == 0;
+    }
     else{
         if(x->x_exp == 1);
             x->x_expmode = 0; // lin
