@@ -509,7 +509,7 @@ static void knob_save(t_gobj *z, t_binbuf *b){
         atom_getsymbol(binbuf_getvec(x->x_obj.te_binbuf)));
     knob_get_snd(x);
     knob_get_rcv(x);
-    binbuf_addv(b, "iffffssssssiiiiiiii", // 19 args
+    binbuf_addv(b, "iffffsssssiiiiiii", // 17 args
         x->x_size, // 01: i SIZE
         (float)x->x_min, // 02: f min
         (float)x->x_max, // 03: f max
@@ -520,16 +520,13 @@ static void knob_save(t_gobj *z, t_binbuf *b){
         x->x_bg, // 08: s bgcolor
         x->x_mg, // 09: s mgcolor
         x->x_fg, // 10: s fgcolor
-        x->x_mg, // 11: s fgcolor
-        x->x_outline, // 12: i outline
-        x->x_circular, // 13: i circular
-        x->x_ticks, // 14: i ticks
-        x->x_discrete, // 15: i discrete
-        x->x_arc, // 16: i arc
-        x->x_range, // 17: i range
-        x->x_offset,  // 18: i offset
-        x->x_outline // 19: i outline
-);
+        x->x_outline, // 11: i outline
+        x->x_circular, // 12: i circular
+        x->x_ticks, // 13: i ticks
+        x->x_discrete, // 14: i discrete
+        x->x_arc, // 15: i arc
+        x->x_range, // 16: i range
+        x->x_offset); // 17: i offset
     binbuf_addv(b, ";");
 }
 
@@ -790,9 +787,8 @@ static void knob_properties(t_gobj *z, t_glist *owner){
     owner = NULL;
     t_knob *x = (t_knob *)z;
     char buffer[512];
-    sprintf(buffer, "knob_dialog %%s %g %g %g %g %g %d {%s} {%s} %d %g {%s} {%s} %d %d %d %d %d\n",
+    sprintf(buffer, "knob_dialog %%s %g %g %g %g %d {%s} {%s} %d %g {%s} {%s} {%s} %d %d %d %d %d %d\n",
         (float)(x->x_size / x->x_zoom),
-        (float)MIN_SIZE,
         x->x_min,
         x->x_max,
         x->x_init,
@@ -803,11 +799,14 @@ static void knob_properties(t_gobj *z, t_glist *owner){
         x->x_exp,
         x->x_bg->s_name,
         x->x_fg->s_name,
+        x->x_mg->s_name,
         x->x_discrete,
         x->x_ticks,
         x->x_arc,
         x->x_range,
-        x->x_offset);
+        x->x_offset,
+        x->x_outline
+);
     gfxstub_new(&x->x_obj.ob_pd, x, buffer);
 }
 
@@ -822,16 +821,14 @@ static void knob_apply(t_knob *x, t_symbol *s, int ac, t_atom *av){
     x->x_outline = atom_getintarg(6, ac, av);
     float exp = atom_getfloatarg(7, ac, av);
     t_symbol *bg = atom_getsymbolarg(8, ac, av);
-    t_symbol *fg = atom_getsymbolarg(9, ac, av);
-    t_symbol *mg = atom_getsymbolarg(10, ac, av);
+    t_symbol *mg = atom_getsymbolarg(9, ac, av);
+    t_symbol *fg = atom_getsymbolarg(10, ac, av);
     x->x_circular = atom_getintarg(11, ac, av);
     int ticks = atom_getintarg(12, ac, av);
     x->x_discrete = atom_getintarg(13, ac, av);
     int arc = atom_getintarg(14, ac, av) != 0;
     int range = atom_getintarg(15, ac, av);
     int offset = atom_getintarg(16, ac, av);
-    int outline = atom_getintarg(17, ac, av);
-
     t_atom undo[17];
     SETFLOAT(undo+0, x->x_size);
     SETFLOAT(undo+1, x->x_min);
@@ -842,15 +839,15 @@ static void knob_apply(t_knob *x, t_symbol *s, int ac, t_atom *av){
     SETFLOAT(undo+6, x->x_outline);
     SETFLOAT(undo+7, x->x_log ? 1 : x->x_exp);
     SETSYMBOL(undo+8, x->x_bg);
-    SETSYMBOL(undo+9, x->x_fg);
-    SETFLOAT(undo+10, x->x_circular);
-    SETFLOAT(undo+11, x->x_ticks);
-    SETFLOAT(undo+12, x->x_discrete);
-    SETFLOAT(undo+13, x->x_arc);
-    SETFLOAT(undo+14, x->x_range);
-    SETFLOAT(undo+15, x->x_offset);
+    SETSYMBOL(undo+9, x->x_mg);
+    SETSYMBOL(undo+10, x->x_fg);
+    SETFLOAT(undo+11, x->x_circular);
+    SETFLOAT(undo+12, x->x_ticks);
+    SETFLOAT(undo+13, x->x_discrete);
+    SETFLOAT(undo+14, x->x_arc);
+    SETFLOAT(undo+15, x->x_range);
     SETFLOAT(undo+16, x->x_offset);
-    pd_undo_set_objectstate(x->x_glist, (t_pd*)x, gensym("dialog"), 16, undo, ac, av);
+    pd_undo_set_objectstate(x->x_glist, (t_pd*)x, gensym("dialog"), 17, undo, ac, av);
     x->x_exp = 1;
     if(!exp)
         knob_log(x, 1);
@@ -870,8 +867,6 @@ static void knob_apply(t_knob *x, t_symbol *s, int ac, t_atom *av){
     knob_range(x, min, max);
     knob_send(x, snd);
     knob_receive(x, rcv);
-    knob_outline(x, outline);
-
     if(x->x_init != init){
         SETFLOAT(at, init);
         knob_init(x, NULL, 1, at);
