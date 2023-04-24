@@ -445,8 +445,8 @@ static void knob_save(t_gobj *z, t_binbuf *b){
         (float)x->x_max, // 03: f max
         x->x_exp, // 04: f exp
         x->x_outline, // 05: i outline
-        x->x_rcv_raw, // 06: s rcv
-        x->x_snd_raw, // 07: s snd
+        x->x_snd_raw, // 06: s snd
+        x->x_rcv_raw, // 07: s rcv
         x->x_bg, // 08: s bgcolor
         x->x_fg, // 09: s fgcolor
         x->x_init, // 10: f init
@@ -1109,8 +1109,8 @@ static void *knob_new(t_symbol *s, int ac, t_atom *av){
             }
         }
     }
-    x->x_rcv = canvas_realizedollar(x->x_glist, x->x_rcv_raw = rcv);
     x->x_snd = canvas_realizedollar(x->x_glist, x->x_snd_raw = snd);
+    x->x_rcv = canvas_realizedollar(x->x_glist, x->x_rcv_raw = rcv);
     x->x_size = size < MIN_SIZE ? MIN_SIZE : size;
     knob_range(x, min, max);
     knob_exp(x, exp);
