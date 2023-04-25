@@ -1285,7 +1285,7 @@ void knob_setup(void){
     class_addmethod(knob_class, (t_method)knob_log, gensym("log"), A_FLOAT, 0);
     class_addmethod(knob_class, (t_method)knob_discrete, gensym("discrete"), A_FLOAT, 0);
     class_addmethod(knob_class, (t_method)knob_bgcolor, gensym("bgcolor"), A_GIMME, 0);
-    class_addmethod(knob_class, (t_method)knob_mgcolor, gensym("mgcolor"), A_GIMME, 0);
+    class_addmethod(knob_class, (t_method)knob_mgcolor, gensym("arccolor"), A_GIMME, 0);
     class_addmethod(knob_class, (t_method)knob_fgcolor, gensym("fgcolor"), A_GIMME, 0);
     class_addmethod(knob_class, (t_method)knob_send, gensym("send"), A_DEFSYM, 0);
     class_addmethod(knob_class, (t_method)knob_receive, gensym("receive"), A_DEFSYM, 0);
