@@ -1027,7 +1027,7 @@ static void *knob_new(t_symbol *s, int ac, t_atom *av){
     t_symbol *snd = gensym("empty"), *rcv = gensym("empty");
     int size = 50, circular = 0, ticks = 0, discrete = 0;
     int arc = 1, angle = 320, offset = 0;
-    x->x_bg = gensym("#dfdfdf"), x->x_mg = gensym("#afafaf"), x->x_fg = gensym("black");
+    x->x_bg = gensym("#dfdfdf"), x->x_mg = gensym("#7c7c7c"), x->x_fg = gensym("black");
     x->x_clicked = x->x_log = 0;
     x->x_outline = 0;
     x->x_glist = (t_glist *)canvas_getcurrent();
