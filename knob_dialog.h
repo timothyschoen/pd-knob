@@ -91,7 +91,9 @@ sys_gui("\n"
 "    set ::dialog_knob::var_ticks($vid) [::dialog_knob::clip $::dialog_knob::var_ticks($vid) 0 360]\n"
 "\n"
 "\n"
-
+"   set exp $::dialog_knob::var_exp($vid) \n"
+"   if { $::dialog_knob::var_expmode($vid) == 0 } { set exp 0 } \n"
+"   if { $::dialog_knob::var_expmode($vid) == 1 } { set exp 1 } \n"
 //  Send it to the object
 "    pdsend [concat $mytoplevel dialog \\\n"
 "                $::dialog_knob::var_size($vid) \\\n"
