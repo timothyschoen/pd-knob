@@ -848,11 +848,14 @@ static void knob_apply(t_knob *x, t_symbol *s, int ac, t_atom *av){
     SETFLOAT(undo+15, x->x_range);
     SETFLOAT(undo+16, x->x_offset);
     pd_undo_set_objectstate(x->x_glist, (t_pd*)x, gensym("dialog"), 17, undo, ac, av);
-    x->x_exp = 1;
-    if(!exp)
-        knob_log(x, 1);
-    else
+
+    knob_log(x, exp == 1.0f);
+
+    if(exp != 1.0f)
+    {
         knob_exp(x, exp);
+    }
+
     knob_ticks(x, ticks);
     t_atom at[1];
     SETSYMBOL(at, bg);
