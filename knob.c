@@ -573,7 +573,7 @@ static void knob_init(t_knob *x, t_symbol *s, int ac, t_atom *av){
 }
 
 // set start/end angles
-static void knob_angle(t_knob *x, t_floatarg f1, t_floatarg f2){
+static void knob_start_end(t_knob *x, t_floatarg f1, t_floatarg f2){
     int range = f1 > 360 ? 360 : f1 < 0 ? 0 : (int)f1;
     int offset = f2 > 360 ? 360 : f2 < 0 ? 0 : (int)f2;
     if(x->x_range == range && x->x_offset == offset)
@@ -607,6 +607,14 @@ static void knob_angle(t_knob *x, t_floatarg f1, t_floatarg f2){
         knob_draw_ticks(x, glist_getcanvas(x->x_glist));
         knob_update(x, glist_getcanvas(x->x_glist));
     }
+}
+
+static void knob_angle(t_knob *x, t_floatarg f){
+    knob_start_end(x, f, x->x_offset);
+}
+
+static void knob_offset(t_knob *x, t_floatarg f){
+    knob_start_end(x, x->x_range, f);
 }
 
 static void knob_size(t_knob *x, t_floatarg f){
@@ -745,6 +753,8 @@ static void knob_range(t_knob *x, t_floatarg f1, t_floatarg f2){
         x->x_init = x->x_min;
     if(x->x_init > x->x_max)
         x->x_init = x->x_max;
+    if(glist_isvisible(x->x_glist) && gobj_shouldvis((t_gobj *)x, x->x_glist))
+        knob_update(x, glist_getcanvas(x->x_glist));
 }
 
 static void knob_log(t_knob *x, t_floatarg f){
@@ -757,6 +767,8 @@ static void knob_log(t_knob *x, t_floatarg f){
         else
             x->x_expmode = 2; // exp
     }
+    if(glist_isvisible(x->x_glist) && gobj_shouldvis((t_gobj *)x, x->x_glist))
+        knob_update(x, glist_getcanvas(x->x_glist));
 }
 
 static void knob_exp(t_knob *x, t_floatarg f){
@@ -771,6 +783,8 @@ static void knob_exp(t_knob *x, t_floatarg f){
         else
             x->x_expmode = 2; // exp
     }
+    if(glist_isvisible(x->x_glist) && gobj_shouldvis((t_gobj *)x, x->x_glist))
+        knob_update(x, glist_getcanvas(x->x_glist));
 }
 
 static void knob_outline(t_knob *x, t_floatarg f){
@@ -864,7 +878,7 @@ static void knob_apply(t_knob *x, t_symbol *s, int ac, t_atom *av){
     knob_fgcolor(x, NULL, 1, at);
     SETSYMBOL(at, mg);
     knob_mgcolor(x, NULL, 1, at);
-    knob_angle(x, (float)range, (float)offset);
+    knob_start_end(x, (float)range, (float)offset);
     knob_arc(x, (float)arc);
     knob_size(x, (float)size);
     knob_range(x, min, max);
@@ -1293,7 +1307,8 @@ void knob_setup(void){
     class_addmethod(knob_class, (t_method)knob_send, gensym("send"), A_DEFSYM, 0);
     class_addmethod(knob_class, (t_method)knob_receive, gensym("receive"), A_DEFSYM, 0);
     class_addmethod(knob_class, (t_method)knob_arc, gensym("arc"), A_DEFFLOAT, 0);
-    class_addmethod(knob_class, (t_method)knob_angle, gensym("angle"), A_FLOAT, A_DEFFLOAT, 0);
+    class_addmethod(knob_class, (t_method)knob_angle, gensym("angle"), A_FLOAT, 0);
+    class_addmethod(knob_class, (t_method)knob_offset, gensym("offset"), A_FLOAT, 0);
     class_addmethod(knob_class, (t_method)knob_ticks, gensym("ticks"), A_DEFFLOAT, 0);
     class_addmethod(knob_class, (t_method)knob_zoom, gensym("zoom"), A_CANT, 0);
     class_addmethod(knob_class, (t_method)knob_apply, gensym("dialog"), A_GIMME, 0);
@@ -1301,7 +1316,6 @@ void knob_setup(void){
     class_addmethod(knob_class, (t_method)knob_outline, gensym("outline"), A_DEFFLOAT, 0);
     edit_proxy_class = class_new(0, 0, 0, sizeof(t_edit_proxy), CLASS_NOINLET | CLASS_PD, 0);
     class_addanything(edit_proxy_class, edit_proxy_any);
-//
     knob_widgetbehavior.w_getrectfn  = knob_getrect;
     knob_widgetbehavior.w_displacefn = knob_displace;
     knob_widgetbehavior.w_selectfn   = knob_select;
