@@ -87,7 +87,6 @@ typedef struct _knob{
 }t_knob;
 
 // ---------------------- Helper functions ----------------------
-
 // get value from motion/position
 static t_float knob_getfval(t_knob *x){
     t_float fval;
@@ -753,6 +752,7 @@ static void knob_range(t_knob *x, t_floatarg f1, t_floatarg f2){
         x->x_init = x->x_min;
     if(x->x_init > x->x_max)
         x->x_init = x->x_max;
+    x->x_pos = knob_getpos(x, x->x_fval);
     if(glist_isvisible(x->x_glist) && gobj_shouldvis((t_gobj *)x, x->x_glist))
         knob_update(x, glist_getcanvas(x->x_glist));
 }
@@ -767,6 +767,7 @@ static void knob_log(t_knob *x, t_floatarg f){
         else
             x->x_expmode = 2; // exp
     }
+    x->x_pos = knob_getpos(x, x->x_fval);
     if(glist_isvisible(x->x_glist) && gobj_shouldvis((t_gobj *)x, x->x_glist))
         knob_update(x, glist_getcanvas(x->x_glist));
 }
@@ -783,6 +784,7 @@ static void knob_exp(t_knob *x, t_floatarg f){
         else
             x->x_expmode = 2; // exp
     }
+    x->x_pos = knob_getpos(x, x->x_fval);
     if(glist_isvisible(x->x_glist) && gobj_shouldvis((t_gobj *)x, x->x_glist))
         knob_update(x, glist_getcanvas(x->x_glist));
 }
