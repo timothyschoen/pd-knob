@@ -864,13 +864,13 @@ static void knob_apply(t_knob *x, t_symbol *s, int ac, t_atom *av){
     SETFLOAT(undo+15, x->x_range);
     SETFLOAT(undo+16, x->x_offset);
     pd_undo_set_objectstate(x->x_glist, (t_pd*)x, gensym("dialog"), 17, undo, ac, av);
+    
+    x->x_min = (double)min;
+    x->x_max = (double)max;
 
     knob_log(x, exp == 1.0f);
-
     if(exp != 1.0f)
-    {
         knob_exp(x, exp);
-    }
 
     knob_ticks(x, ticks);
     t_atom at[1];
@@ -883,7 +883,6 @@ static void knob_apply(t_knob *x, t_symbol *s, int ac, t_atom *av){
     knob_start_end(x, (float)range, (float)offset);
     knob_arc(x, (float)arc);
     knob_size(x, (float)size);
-    knob_range(x, min, max);
     knob_send(x, snd);
     knob_receive(x, rcv);
     if(x->x_init != init){
@@ -1089,6 +1088,8 @@ static void *knob_new(t_symbol *s, int ac, t_atom *av){
                         x->x_flag = 1, av++, ac--;
                         if(av->a_type == A_FLOAT){
                             exp = atom_getfloat(av);
+                            if(fabs(exp) == 1)
+                                exp = 0;
                             av++, ac--;
                         }
                         else
@@ -1096,6 +1097,10 @@ static void *knob_new(t_symbol *s, int ac, t_atom *av){
                     }
                     else
                         goto errstate;
+                }
+                else if(sym == gensym("-log")){
+                    x->x_flag = 1, av++, ac--;
+                    exp = 1;
                 }
                 else if(sym == gensym("-send")){
                     if(ac >= 2){
@@ -1175,10 +1180,6 @@ static void *knob_new(t_symbol *s, int ac, t_atom *av){
                     else
                         goto errstate;
                 }
-                else if(sym == gensym("-log")){
-                    x->x_flag = 1, av++, ac--;
-                    exp = 1;
-                }
                 else if(sym == gensym("-circular")){
                     x->x_flag = 1, av++, ac--;
                     circular = 1;
@@ -1247,7 +1248,7 @@ static void *knob_new(t_symbol *s, int ac, t_atom *av){
     x->x_snd = canvas_realizedollar(x->x_glist, x->x_snd_raw = snd);
     x->x_rcv = canvas_realizedollar(x->x_glist, x->x_rcv_raw = rcv);
     x->x_size = size < MIN_SIZE ? MIN_SIZE : size;
-    x->x_exp = 0;
+    knob_range(x, min, max);
     if(exp == 1)
         knob_log(x, 1);
     else
@@ -1261,7 +1262,6 @@ static void *knob_new(t_symbol *s, int ac, t_atom *av){
     x->x_start_angle = -(x->x_range/2) + x->x_offset;
     x->x_end_angle = x->x_range/2 + x->x_offset;
     x->x_fval = x->x_init = initvalue;
-    knob_range(x, min, max);
     x->x_pos = knob_getpos(x, x->x_fval);
     x->x_edit = x->x_glist->gl_edit;
     char buf[MAXPDSTRING];
