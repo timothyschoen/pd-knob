@@ -223,10 +223,10 @@ static void knob_config_wcenter(t_knob *x, t_canvas *cv, int active){
 
 // configure inlet outlet and outline
 static void knob_config_io(t_knob *x, t_canvas *cv){
-    int inlet = x->x_rcv == gensym("empty") && x->x_edit;
+    int inlet = (x->x_rcv == &s_ || x->x_rcv == gensym("empty")) && x->x_edit;
     pdgui_vmess(0, "crs rs", cv, "itemconfigure", x->x_tag_in,
         "-state", inlet ? "normal" : "hidden");
-    int outlet = x->x_snd == gensym("empty") && x->x_edit;
+    int outlet = (x->x_snd == &s_ || x->x_snd == gensym("empty")) && x->x_edit;
     pdgui_vmess(0, "crs rs", cv, "itemconfigure", x->x_tag_out,
         "-state", outlet ? "normal" : "hidden");
     int outline = x->x_edit || x->x_outline;
